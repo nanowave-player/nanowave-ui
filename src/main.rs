@@ -18,9 +18,13 @@ fn main() -> Result<(), slint::PlatformError> {
         service.on_message_received(move |msg| {
             println!("Received: {}", msg);
 
-            if let Some(ui) = ui_weak.upgrade() {
-                // Example: update UI safely
-                ui.set_status(format!("Message: {}", msg).into());
+            let timestamp = msg
+                .get("params")
+                .and_then(|p| p.get("timestamp"))
+                .and_then(|t| t.as_str());
+
+            if let (Some(ts), Some(ui)) = (timestamp, ui_weak.upgrade()) {
+                ui.set_status(ts.into());
             }
         });
 
