@@ -14,6 +14,7 @@ export component MainWindow inherits Window {
     height: 160px;
 
     in-out property<string> media_id;
+    in-out property<string> status;
 
     VerticalLayout {
         spacing: 12px;
@@ -31,7 +32,12 @@ export component MainWindow inherits Window {
                 play_requested("sample-id");
             }
         }
+
+        Text {
+            text: status;
+        }
     }
+
 
     callback play_requested(string);
 }

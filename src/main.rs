@@ -1,54 +1,41 @@
-use futures_util::SinkExt;
-use serde_json::json;
-use slint::SharedString;
-use tokio_tungstenite::tungstenite::Message;
-use url::Url;
-
 slint::include_modules!();
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+use slint::SharedString;
+use std::rc::Rc;
+use std::thread;
+use crate::nanowave_service::NanoWaveService;
+
+mod nanowave_service;
+
+fn main() -> Result<(), slint::PlatformError> {
     let ui = MainWindow::new()?;
+    let ui_weak = ui.as_weak();
 
-    let ui_handle = ui.as_weak();
 
-    ui.on_play_requested(move |media_id: SharedString| {
-        let media_id = media_id.to_string();
+    let service = Rc::new(NanoWaveService::new());
+    let service_clone = service.clone();
 
-        // Spawn async task so UI thread stays responsive
-        tokio::spawn(async move {
-            if let Err(e) = send_play_request(media_id).await {
-                eprintln!("Failed to send play request: {}", e);
+        service.on_message_received(move |msg| {
+            println!("Received: {}", msg);
+
+            if let Some(ui) = ui_weak.upgrade() {
+                // Example: update UI safely
+                ui.set_status(format!("Message: {}", msg).into());
             }
         });
+
+    // UI → service command
+    ui.on_play_requested(move |media_id: SharedString| {
+        service_clone.play_media(media_id.to_string());
     });
 
-    ui.run()?;
-    Ok(())
-}
+    // Start background service
 
-async fn send_play_request(media_id: String) -> Result<(), Box<dyn std::error::Error>> {
-    let url = Url::parse("ws://127.0.0.1:8080")?;
-    let (mut ws, _) = tokio_tungstenite::connect_async(url.to_string()).await?;
+    slint::spawn_local(async move {
+        service.run_in_background();
+    }).unwrap();
+//.expect("Failed to spawn NanoWaveService");
 
-    let request = json!({
-        "jsonrpc": "2.0",
-        "method": "player_play_media",
-        "params": {
-            "id": media_id
-        },
-        "id": 1
-    });
 
-    ws.send(Message::Text(request.to_string().into())).await?;
-
-    // Optional: read response (can be omitted)
-    /*
-    if let Some(msg) = ws.next().await {
-        if let Ok(Message::Text(txt)) = msg {
-            println!("Server response: {}", txt);
-        }
-    }
-    */
-    Ok(())
+    ui.run()
 }
