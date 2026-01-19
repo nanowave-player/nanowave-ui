@@ -1,0 +1,37 @@
+import {
+    Button,
+    HorizontalBox,
+    ListView,
+    Palette,
+    ScrollView,
+    Slider,
+    Switch,
+    VerticalBox,
+} from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    width: 300px;
+    height: 160px;
+
+    in-out property<string> media_id;
+
+    VerticalLayout {
+        spacing: 12px;
+        padding: 16px;
+
+        TextInput {
+            // placeholder-text: "Media ID";
+            accessible-placeholder-text: "Media ID";
+            text <=> media_id;
+        }
+
+        Button {
+            text: "Play Media";
+            clicked => {
+                play_requested("pimmel");
+            }
+        }
+    }
+
+    callback play_requested(string);
+}
