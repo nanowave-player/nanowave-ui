@@ -1,0 +1,99 @@
+/*
+export global SlintCallbacks {
+    pure callback format_duration(duration) -> string;
+}
+*/
+export global SlintIcons {
+    // home
+    in-out property <image> audiobooks: @image-url("images/icons/home/audiobooks.png");
+    in-out property <image> music: @image-url("images/icons/home/music.png");
+    in-out property <image> search: @image-url("images/icons/home/search.png");
+    in-out property <image> settings: @image-url("images/icons/home/settings.png");
+    // player
+    in-out property <image> next: @image-url("images/icons/player/skip_next.png");
+    in-out property <image> previous: @image-url("images/icons/player/skip_previous.png");
+    in-out property <image> pause: @image-url("images/icons/player/pause.png");
+    in-out property <image> play: @image-url("images/icons/player/play_arrow.png");
+    in-out property <image> forward-5: @image-url("images/icons/player/forward_5.png");
+    in-out property <image> forward-10: @image-url("images/icons/player/forward_10.png");
+    in-out property <image> forward-30: @image-url("images/icons/player/forward_30.png");
+    in-out property <image> replay-5: @image-url("images/icons/player/replay_5.png");
+    in-out property <image> replay-10: @image-url("images/icons/player/replay_10.png");
+    in-out property <image> replay-30: @image-url("images/icons/player/replay_30.png");
+}
+
+export global SlintAudioPlayer {
+    in-out property <string> current-item-id;
+    in-out property <string> status; // playing, paused
+    in-out property <duration> position;
+    in-out property <string> position_formatted;
+
+
+    callback play_test();
+    callback play_media(string);
+    callback play();
+    callback pause();
+    callback next();
+    callback previous();
+    callback seek_relative(duration);
+    callback seek_to(duration);
+}
+
+export global SlintNavigation {
+    in-out property <[string]> route: ["home"];
+    in-out property <int> history_index: 0;
+    in-out property <[[string]]> history: [["home"]];
+
+    callback goto([string]);
+    callback back();
+    callback forward();
+}
+
+export global SlintPreferences {
+
+    callback sync();
+
+    in-out property <string> now: "";
+
+    in-out property <ColorScheme> color-scheme: ColorScheme.dark;
+    // in-out property <bool> fullscreen: false;
+    in-out property <float> brightness: 0.3;
+
+    in-out property <bool> enable-gestures: true;
+    in-out property <bool> display-color-test: false;
+}
+
+export struct SlintMediaSourceChapter {
+    name: string,
+    start: duration,
+    duration: duration,
+}
+
+export struct SlintMediaSourceItem {
+    id: string,
+    media_type: int,
+    name: string,
+    genre: string,
+    artist: string,
+    album: string,
+    composer: string,
+    series: string,
+    part: string,
+    // cover: string,
+    // thumbnail: string
+    has-cover: bool,
+    cover: image,
+    has-thumbnail: bool,
+    thumbnail: image,
+    chapters: [SlintMediaSourceChapter]
+}
+
+export global SlintMediaSource {
+    in-out property <bool> is-loading;
+    in-out property <[SlintMediaSourceItem]> filter-results;
+    in-out property <[SlintMediaSourceItem]> find-results;
+
+    callback filter(query: string);
+    callback find(id: string);
+
+}

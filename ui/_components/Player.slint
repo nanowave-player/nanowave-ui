@@ -1,0 +1,57 @@
+
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import {SlintAudioPlayer, SlintMediaSourceItem, SlintIcons} from "../globals.slint";
+
+import { TogglePlayButton } from "buttons/TogglePlayButton.slint";
+import { IconButton } from "buttons/IconButton.slint";
+
+// icons see: https://docs.rs/lucide-slint/latest/lucide_slint/
+export component Player {
+    in-out property <SlintMediaSourceItem> item;
+
+    VerticalBox {
+        if SlintAudioPlayer.current-item-id == item.id: HorizontalBox {
+            Text {
+                text: SlintAudioPlayer.position_formatted;
+            }
+        }
+        HorizontalBox {
+            alignment: center;
+            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+                icon: SlintIcons.previous;
+                clicked => {
+                    SlintAudioPlayer.previous();
+                }
+            }
+
+            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+                icon: SlintIcons.replay-10;
+                clicked => {
+                    SlintAudioPlayer.seek_relative(-10s);
+                }
+            }
+
+            TogglePlayButton {
+                is-playing: SlintAudioPlayer.status == "playing";
+                clicked => {
+                    SlintAudioPlayer.play_media(item.id);
+                }
+            }
+
+            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+                icon: SlintIcons.forward-10;
+                clicked => {
+                    SlintAudioPlayer.seek_relative(10s);
+                }
+            }
+
+            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+                icon: SlintIcons.next;
+                clicked => {
+                    SlintAudioPlayer.next();
+                }
+            }
+        }
+
+    }
+}

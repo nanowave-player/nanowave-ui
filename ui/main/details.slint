@@ -1,0 +1,73 @@
+// solving lists without gridlayout supporting it: https://github.com/slint-ui/slint/discussions/5422
+// sample slint programs:
+// - https://github.com/Vadoola/Tomotroid
+// - https://github.com/slint-ui/slint/tree/master/demos/home-automation
+
+import {
+    Button,
+    ListView,
+    HorizontalBox,
+    Palette,
+    ScrollView,
+    Slider,
+    Switch,
+    VerticalBox,
+} from "std-widgets.slint";
+
+import {SlintNavigation, SlintAudioPlayer, SlintMediaSource, SlintMediaSourceItem} from "../globals.slint";
+
+import {Player} from "../_components/Player.slint";
+
+export component Details {
+
+    in-out property <string> item-id;
+    in-out property <SlintMediaSourceItem> item;
+
+    init => {
+        SlintMediaSource.find(item-id);
+    }
+
+
+    VerticalBox {
+        padding:0px;
+        if SlintMediaSource.find-results.length == 0: Text {
+            text: "No items";
+        }
+        for item in SlintMediaSource.find-results: VerticalBox {
+            padding:0px;
+            Image {
+                width:100%;
+                min-height:362px;
+                source: item.cover;
+            }
+            Player {
+                item: item;
+            }
+            Text {
+                text: item.genre;
+            }
+            Text {
+                text: item.artist;
+            }
+            Text {
+                text: "#" + item.part + " " + item.series;
+            }
+            Text {
+                text: item.name;
+            }
+
+            Button {
+                text: "Play";
+                clicked => {
+                    SlintAudioPlayer.play_media(item.id);
+                }
+            }
+
+            for chapter in item.chapters: Text {
+                text: chapter.name;
+            }
+
+
+        }
+    }
+}

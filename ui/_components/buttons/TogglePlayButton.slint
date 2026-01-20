@@ -1,0 +1,46 @@
+import {
+    VerticalBox,
+} from "std-widgets.slint";
+import { SlintIcons } from "../../globals.slint";
+
+
+export component TogglePlayButton inherits TouchArea {
+
+    in-out property <bool> is-playing: false;
+    in-out property <physical-length> size: 48px;
+    VerticalBox {
+        padding:0px;
+        if is-playing: Image {
+            source: SlintIcons.pause;
+            width: size;
+            height: size;
+        }
+        if !is-playing: Image {
+            source: SlintIcons.play;
+            width: size;
+            height: size;
+       }
+    }
+
+}
+
+
+
+/*
+export component HomeButton inherits Navigator {
+    in property <image> image;
+    in property <string> text;
+    VerticalBox {
+        Image {
+            source: image;
+            width: 150px;
+            height: 150px;
+        }
+
+        Text {
+            horizontal-alignment: center;
+            text: text;
+        }
+    }
+}
+*/
