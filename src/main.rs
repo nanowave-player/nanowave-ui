@@ -12,6 +12,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_weak = ui.as_weak();
 
 
+
     let navigation = ui.global::<SlintNavigation>();
     let ui_nav = ui_weak.clone();
     navigation.on_goto(move |value| {
@@ -41,6 +42,41 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history(ModelRc::new(history));
         nav.set_history_index(next_index);
     });
+
+
+
+    let ui_back = ui_weak.clone();
+    navigation.on_back(move || {
+        let ui = ui_back.upgrade().unwrap();
+        let nav = ui.global::<SlintNavigation>();
+        let current_index = nav.get_history_index();
+        let vec_index = current_index as usize;
+        let vec_of_history: Vec<ModelRc<SharedString>> = nav.get_history().iter().collect();
+        if current_index == 0 || vec_of_history.is_empty() {
+            return;
+        }
+        nav.set_route(vec_of_history[vec_index - 1].clone());
+        nav.set_history_index(current_index - 1);
+    });
+
+    let ui_forward = ui_weak.clone();
+    navigation.on_forward(move || {
+        let ui = ui_forward.upgrade().unwrap();
+        let nav = ui.global::<SlintNavigation>();
+        let current_index = nav.get_history_index();
+        let vec_index = current_index as usize;
+        let vec_of_history: Vec<ModelRc<SharedString>> = nav.get_history().iter().collect();
+        if vec_of_history.len() < vec_index + 2 {
+            return;
+        }
+        nav.set_route(vec_of_history[vec_index + 1].clone());
+        nav.set_history_index(current_index + 1);
+    });
+
+
+
+
+
 
 
     let service = Rc::new(NanoWaveService::new());
