@@ -57,12 +57,11 @@ fn run_service_loop(
     let (mut socket, _) = connect(url.to_string()).expect("WebSocket connect failed");
 
     loop {
-        // Send queued messages
         if let Some(msg) = outgoing.lock().unwrap().pop() {
-            let _ = socket.write_message(Message::Text(msg.to_string().into()));
+            let _ = socket.send(Message::Text(msg.to_string().into()));
         }
 
-        match socket.read_message() {
+        match socket.read() {
             Ok(Message::Text(txt)) => {
                 if let Ok(value) = serde_json::from_str::<Value>(&txt) {
                     // 🔑 Clone callback out of mutex
@@ -82,7 +81,7 @@ fn run_service_loop(
             }
             Ok(_) => {}
             Err(_) => {
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                thread::sleep(std::time::Duration::from_millis(50));
             }
         }
     }
