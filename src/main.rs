@@ -79,10 +79,13 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
 
-    let service = Rc::new(NanoWaveService::new());
-    let service_clone = service.clone();
 
-    service.on_message_received(move |msg| {
+
+    let backend_service = Rc::new(NanoWaveService::new());
+
+    let ui_backend_service = ui_weak.clone();
+    backend_service.on_message_received(move |msg| {
+        // let ui = ui_backend_service.upgrade().unwrap();
         println!("Received: {}", msg);
 
         let timestamp = msg
@@ -90,17 +93,56 @@ fn main() -> Result<(), slint::PlatformError> {
             .and_then(|p| p.get("timestamp"))
             .and_then(|t| t.as_str());
 
-        if let (Some(ts), Some(ui)) = (timestamp, ui_weak.upgrade()) {
+        if let (Some(ts), Some(ui)) = (timestamp, ui_backend_service.upgrade()) {
             ui.set_status(ts.into());
         }
     });
 
+    /*
     // UI → service command
     ui.on_play_requested(move |media_id: SharedString| {
-        service_clone.play_media(media_id.to_string());
+        backend_service_clone.play_media(media_id.to_string());
     });
+    */
 
-    service.run_in_background();
+    let backend_service_clone = backend_service.clone();
+    let slint_media_source = ui.global::<SlintMediaSource>();
+    let ui_slint_media_source = ui_weak.clone();
+    slint_media_source.on_filter({
+        let ui = ui_slint_media_source.upgrade().unwrap();
+
+        let inner = ui.global::<SlintMediaSource>();
+        inner.set_is_loading(true);
+        inner.set_filter_results(ModelRc::default());
+
+        move |query| {
+            backend_service_clone.filter_media(query.to_string());
+        }
+
+        /*
+        move |query| {
+            filter_tx
+                .send(MediaSourceCommand::Filter(query.to_string()))
+                .unwrap();
+        }
+
+         */
+    });
+/* Todo
+    let slint_media_source_find_ui = slint_app_window.clone_strong();
+    let find_tx = source_cmd_tx.clone();
+    slint_media_source.on_find({
+        let inner = slint_media_source_find_ui.global::<SlintMediaSource>();
+        inner.set_is_loading(true);
+        inner.set_find_results(ModelRc::default());
+        move |id| {
+            find_tx
+                .send(MediaSourceCommand::Find(id.to_string()))
+                .unwrap();
+        }
+    });
+*/
+    backend_service.run_in_background();
 
     ui.run()
 }
