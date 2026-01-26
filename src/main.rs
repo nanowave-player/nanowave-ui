@@ -4,10 +4,27 @@ use std::iter;
 use crate::nanowave_service::NanoWaveService;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
+use tungstenite::{connect, Message};
+use url::Url;
 
 mod nanowave_service;
 
 fn main() -> Result<(), slint::PlatformError> {
+    /*
+    // Change this to your actual WebSocket URL
+    let url = Url::parse("ws://localhost:8080").unwrap();
+
+    let (mut socket, _response) = connect(url.to_string()).expect("Failed to connect");
+
+    let msg = r#"{"jsonrpc":"2.0","method":"media_source_filter","params":{"query":"2"},"id":"1"}"#;
+
+    socket
+        .write_message(Message::Text(msg.into()))
+        .expect("Failed to send message");
+
+    println!("Message sent");
+    */
+
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
 
@@ -84,19 +101,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let backend_service = Rc::new(NanoWaveService::new());
 
     let ui_backend_service = ui_weak.clone();
-    backend_service.on_message_received(move |msg| {
-        // let ui = ui_backend_service.upgrade().unwrap();
-        println!("Received: {}", msg);
 
-        let timestamp = msg
-            .get("params")
-            .and_then(|p| p.get("timestamp"))
-            .and_then(|t| t.as_str());
-
-        if let (Some(ts), Some(ui)) = (timestamp, ui_backend_service.upgrade()) {
-            ui.set_status(ts.into());
-        }
-    });
 
     /*
     // UI → service command
@@ -105,44 +110,83 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     */
 
-    let backend_service_clone = backend_service.clone();
-    let slint_media_source = ui.global::<SlintMediaSource>();
-    let ui_slint_media_source = ui_weak.clone();
-    slint_media_source.on_filter({
-        let ui = ui_slint_media_source.upgrade().unwrap();
 
-        let inner = ui.global::<SlintMediaSource>();
-        inner.set_is_loading(true);
-        inner.set_filter_results(ModelRc::default());
+    backend_service.on_message_received(move |msg| {
+        // let ui = ui_slint_media_source_response.upgrade().unwrap();
+        // let slint_media_source = ui.global::<SlintMediaSource>();
 
-        move |query| {
-            backend_service_clone.filter_media(query.to_string());
-        }
+
+        println!("Received: {}", msg);
+
 
         /*
-        move |query| {
-            filter_tx
-                .send(MediaSourceCommand::Filter(query.to_string()))
-                .unwrap();
+        while let Some(event) = source_evt_rx.recv().await {
+            if let Some(ui) = ui_handle.upgrade() {
+                let inner = ui.global::<SlintMediaSource>();
+
+                match event {
+                    MediaSourceEvent::FilterResults(items) => {
+                        inner.set_filter_results(slint_helpers::utils::rust_items_to_slint_model(items, false));
+                    }
+                    MediaSourceEvent::FindResult(opt_item) => {
+                        if let Some(item) = opt_item {
+                            inner.set_find_results(slint_helpers::utils::rust_items_to_slint_model(vec![item], true));
+                        } else {
+                            // clear results if nothing found
+                            inner.set_find_results(slint::ModelRc::default());
+                        }
+                    }
+                }
+            } else {
+                // UI was dropped; stop listening
+                break;
+            }
+        }
+         */
+
+
+        /*
+        let timestamp = msg
+            .get("params")
+            .and_then(|p| p.get("timestamp"))
+            .and_then(|t| t.as_str());
+
+        if let (Some(ts), Some(ui)) = (timestamp, ui_backend_service.upgrade()) {
+            ui.set_status(ts.into());
         }
 
          */
     });
-/* Todo
-    let slint_media_source_find_ui = slint_app_window.clone_strong();
-    let find_tx = source_cmd_tx.clone();
-    slint_media_source.on_find({
-        let inner = slint_media_source_find_ui.global::<SlintMediaSource>();
-        inner.set_is_loading(true);
-        inner.set_find_results(ModelRc::default());
-        move |id| {
-            find_tx
-                .send(MediaSourceCommand::Find(id.to_string()))
-                .unwrap();
+
+    let slint_media_source = ui.global::<SlintMediaSource>();
+
+
+    let ui_slint_media_source_filter = ui_weak.clone();
+    let backend_service_filter = backend_service.clone();
+
+    slint_media_source.on_filter({
+        let ui = ui_slint_media_source_filter.upgrade().unwrap();
+        move |query| {
+            println!("onfilter {}", query);
+            let media_source = ui.global::<SlintMediaSource>();
+            media_source.set_is_loading(true);
+            media_source.set_filter_results(ModelRc::default());
+            backend_service_filter.media_source_filter(query.to_string());
         }
     });
-*/
-    backend_service.run_in_background();
 
+    let ui_slint_media_source_find = ui_weak.clone();
+    let backend_service_find = backend_service.clone();
+    slint_media_source.on_find({
+        let ui = ui_slint_media_source_find.upgrade().unwrap();
+        move |id| {
+            let media_source = ui.global::<SlintMediaSource>();
+            media_source.set_is_loading(true);
+            media_source.set_find_results(ModelRc::default());
+            backend_service_find.media_source_find(id.to_string());
+        }
+    });
+
+    backend_service.run_in_background();
     ui.run()
 }

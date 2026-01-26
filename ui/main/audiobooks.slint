@@ -24,10 +24,31 @@ export component Audiobooks {
         SlintMediaSource.filter("2");
     }
 
+
     Flickable {
     VerticalBox {
         padding:0px;
 
+        in-out property <string> filter-text: "";
+        Text {
+            text: filter-text;
+        }
+
+        Button {
+            text: "execute find";
+            clicked => {
+                filter-text = "executed-find";
+                SlintMediaSource.find("2");
+            }
+        }
+
+        Button {
+            text: "execute filter";
+            clicked => {
+                filter-text = "executed-filter";
+                SlintMediaSource.filter("2");
+            }
+        }
 
 /*
         Rectangle {

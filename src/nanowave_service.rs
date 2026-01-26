@@ -1,84 +1,165 @@
-use serde_json::{json, Value};
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
     thread,
 };
+
+use serde_json::{Value, json};
 use tungstenite::{connect, Message};
 use url::Url;
-
 
 type MessageCallback = Arc<dyn Fn(Value) + Send + Sync>;
 
 pub struct NanoWaveService {
-    id: Arc<Mutex<i32>>,
-    outgoing: Arc<Mutex<Vec<Value>>>,
+    id: Mutex<i32>,
+    outgoing_tx: mpsc::Sender<Value>,
+    outgoing_rx: Mutex<Option<mpsc::Receiver<Value>>>,
     on_message: Arc<Mutex<Option<MessageCallback>>>,
 }
 
 impl NanoWaveService {
     pub fn new() -> Self {
+        let (tx, rx) = mpsc::channel();
+
         Self {
-            id: Arc::new(Mutex::new(0)),
-            outgoing: Arc::new(Mutex::new(Vec::new())),
+            id: Mutex::new(0),
+            outgoing_tx: tx,
+            outgoing_rx: Mutex::new(Some(rx)),
             on_message: Arc::new(Mutex::new(None)),
         }
     }
 
-    /// Start background thread (call once)
+    /// Start background threads (call once)
     pub fn run_in_background(&self) {
-        let outgoing = self.outgoing.clone();
-        let on_message = self.on_message.clone();
+
 
         thread::spawn(move || {
-            run_service_loop(outgoing, on_message);
+            // Change this to your actual WebSocket URL
+            let url = Url::parse("ws://localhost:8080").unwrap();
+
+            let (mut socket, _response) = connect(url.to_string()).expect("Failed to connect");
+
+            let msg = r#"{"jsonrpc":"2.0","method":"media_source_filter","params":{"query":"2"},"id":"1"}"#;
+
+            socket
+                .send(Message::Text(msg.into()))
+                .expect("Failed to send message");
+
+            println!("Message sent");
         });
+
+
+
+        /*
+        thread::spawn(move || {
+
+            use url::Url;
+            use tungstenite::{connect, Message};
+
+            let (mut socket, response) = connect("ws://127.0.0.1:8080").unwrap();
+
+            let r = socket.write(Message::Text(r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#.into()));
+
+            println!("{:?}", r);
+
+
+            loop {
+                let msg = socket.read().expect("Error reading message");
+                println!("Received: {}", msg);
+            }
+        });
+        */
+        /*
+        let rx = self
+            .outgoing_rx
+            .lock()
+            .unwrap()
+            .take()
+            .expect("run_in_background may only be called once");
+
+        let on_message = self.on_message.clone();
+        let url = Url::parse("ws://127.0.0.1:8080").unwrap();
+        let (socket, _) = connect(url.to_string()).expect("WebSocket connect failed");
+
+        let socket = Arc::new(Mutex::new(socket));
+        let writer_socket = socket.clone();
+        let reader_socket = socket.clone();
+
+        thread::spawn(move || {
+            // ---- Writer thread ----
+            loop {
+                println!("writer loop");
+                while let Ok(msg) = rx.recv() {
+                    println!("writer receive message: {}", msg);
+                    let message = msg.to_string();
+                    let mut ws = writer_socket.lock().unwrap();
+                    let ws_send_result = ws.send(Message::Text(message.into()));
+                    println!("writer send result: {:?}", ws_send_result);
+
+                }
+            }
+        });
+
+
+        thread::spawn(move || {
+            // ---- Reader loop ----
+            loop {
+                let msg = {
+                    let mut ws = reader_socket.lock().unwrap();
+                    ws.read()
+                };
+
+                match msg {
+                    Ok(Message::Text(txt)) => {
+                        if let Ok(value) = serde_json::from_str::<Value>(&txt) {
+                            if let Some(cb) = on_message.lock().unwrap().clone() {
+                                slint::invoke_from_event_loop(move || {
+                                    cb(value);
+                                })
+                                    .ok();
+                            }
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(_) => break,
+                }
+            }
+        });
+
+         */
     }
 
-    fn increment_id(&self) -> i32 {
-        // Lock the Mutex to safely access and modify the value
-        let mut id = self.id.lock().unwrap(); // You could handle the lock failure with more sophisticated error handling
-        *id += 1; // Increment the value inside the Mutex
+    fn next_id(&self) -> i32 {
+        let mut id = self.id.lock().unwrap();
+        *id += 1;
         *id
     }
 
-    /*
-    fn send_message(&self, ) {
-        let id = self.increment_id();
-        let params = Value::new()
-        self.outgoing.lock().unwrap().push(json!({
+    pub fn send_message(&self, method: &str, params: Value) {
+        let msg = json!({
             "jsonrpc": "2.0",
-            "method": "media_source_filter",
-            "params": { "query": query },
-            "id": id
-        }));
-    }
-*/
-    pub fn send_request(&self, method: &str, params: Value) {
-        let id = self.increment_id();
+            "id": self.next_id(),
+            "method": method,
+            "params": params
+        });
 
-        self.outgoing.lock().unwrap().push(
-        json!({
-                "jsonrpc": "2.0",
-                "method": method,
-                "params": params,
-                "id": id
-            })
-        )
+
+        let result = self.outgoing_tx.send(msg.clone());
+        println!("sending message {}, result: {:?}", msg, result);
+
     }
 
-    pub fn filter_media(&self, query: String) {
-        self.send_request("media_source_filter", json!({
-            "query": query
-        }));
+    // ---- API methods ----
+
+    pub fn media_source_filter(&self, query: String) {
+        self.send_message("media_source_filter", json!({ "query": query }));
     }
 
-    pub fn play_media(&self, id: String) {
-        self.outgoing.lock().unwrap().push(json!({
-            "jsonrpc": "2.0",
-            "method": "player_play_media",
-            "params": { "id": id },
-            "id": 1
-        }));
+    pub fn media_source_find(&self, id: String) {
+        self.send_message("media_source_find", json!({ "id": id }));
+    }
+
+    pub fn player_play_media(&self, id: String) {
+        self.send_message("player_play_media", json!({ "id": id }));
     }
 
     pub fn on_message_received<F>(&self, callback: F)
@@ -88,42 +169,3 @@ impl NanoWaveService {
         *self.on_message.lock().unwrap() = Some(Arc::new(callback));
     }
 }
-
-fn run_service_loop(
-    outgoing: Arc<Mutex<Vec<Value>>>,
-    on_message: Arc<Mutex<Option<MessageCallback>>>,
-) {
-    let url = Url::parse("ws://127.0.0.1:8080").unwrap();
-    let (mut socket, _) = connect(url.to_string()).expect("WebSocket connect failed");
-
-    loop {
-        if let Some(msg) = outgoing.lock().unwrap().pop() {
-            let _ = socket.send(Message::Text(msg.to_string().into()));
-        }
-
-        match socket.read() {
-            Ok(Message::Text(txt)) => {
-                if let Ok(value) = serde_json::from_str::<Value>(&txt) {
-                    // 🔑 Clone callback out of mutex
-                    let callback = {
-                        on_message.lock().unwrap().clone()
-                    };
-
-                    if let Some(cb) = callback {
-                        let value = value.clone();
-
-                        slint::invoke_from_event_loop(move || {
-                            cb(value);
-                        })
-                            .unwrap();
-                    }
-                }
-            }
-            Ok(_) => {}
-            Err(_) => {
-                thread::sleep(std::time::Duration::from_millis(50));
-            }
-        }
-    }
-}
-
