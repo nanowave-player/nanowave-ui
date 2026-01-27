@@ -2,9 +2,9 @@ use std::{
     sync::{Arc, Mutex, mpsc},
     thread,
 };
-
+use std::net::TcpStream;
 use serde_json::{Value, json};
-use tungstenite::{connect, Message};
+use tungstenite::{client, connect, Message};
 use url::Url;
 
 type MessageCallback = Arc<dyn Fn(Value) + Send + Sync>;
@@ -32,23 +32,71 @@ impl NanoWaveService {
     pub fn run_in_background(&self) {
 
 
+
+
+        let url = Url::parse("ws://localhost:8080").unwrap();
+        let rx = self
+            .outgoing_rx
+            .lock()
+            .unwrap()
+            .take()
+            .expect("run_in_background may only be called once");
+
+        let (mut socket, _response) = connect(url.to_string()).expect("Failed to connect");
+
+
+        let socket = Arc::new(Mutex::new(socket));
+
+        let reader_socket = socket.clone();
+
+        let writer_socket = socket.clone();
         thread::spawn(move || {
-            // Change this to your actual WebSocket URL
-            let url = Url::parse("ws://localhost:8080").unwrap();
+            while let Ok(msg) = rx.recv() {
+                let mut socket = writer_socket.lock().unwrap();
 
-            let (mut socket, _response) = connect(url.to_string()).expect("Failed to connect");
+                let message = msg.to_string();
 
-            let msg = r#"{"jsonrpc":"2.0","method":"media_source_filter","params":{"query":"2"},"id":"1"}"#;
+                println!("rx message: {}", message.clone());
+                socket
+                    .send(Message::Text(message.into()))
+                    .expect("Failed to send message");
+                drop(socket);
+                /*
+                // let msg = r#"{"jsonrpc":"2.0","method":"media_source_filter","params":{"query":"2"},"id":"1"}"#;
 
-            socket
-                .send(Message::Text(msg.into()))
-                .expect("Failed to send message");
+                socket
+                    .send(Message::Text(msg.into()))
+                    .expect("Failed to send message");
 
-            println!("Message sent");
+                println!("Message sent");
+
+                 */
+            }
+
+
         });
 
 
+        thread::spawn(move || {
+            let mut socket = reader_socket.lock().unwrap();
 
+/*            use url::Url;
+            use tungstenite::{connect, Message};
+
+            let (mut socket, response) = connect("ws://127.0.0.1:8080").unwrap();
+
+            let r = socket.write(Message::Text(r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#.into()));
+
+            println!("{:?}", r);
+*/
+
+            loop {
+                println!("reader loop");
+
+                let msg = socket.read().expect("Error reading message");
+                println!("Received: {}", msg);
+            }
+        });
         /*
         thread::spawn(move || {
 
@@ -68,7 +116,7 @@ impl NanoWaveService {
             }
         });
         */
-        /*
+/*
         let rx = self
             .outgoing_rx
             .lock()
@@ -124,8 +172,8 @@ impl NanoWaveService {
                 }
             }
         });
+*/
 
-         */
     }
 
     fn next_id(&self) -> i32 {

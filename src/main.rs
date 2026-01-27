@@ -6,8 +6,10 @@ use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use tungstenite::{connect, Message};
 use url::Url;
+use crate::websockets::start_websocket_runtime;
 
 mod nanowave_service;
+mod websockets;
 
 fn main() -> Result<(), slint::PlatformError> {
     /*
@@ -24,6 +26,15 @@ fn main() -> Result<(), slint::PlatformError> {
 
     println!("Message sent");
     */
+
+    let url_string = "ws://127.0.0.1:8080";
+    let (ws_tx, mut ws_rx) = start_websocket_runtime(url_string.to_string());
+
+
+
+
+
+
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
@@ -164,29 +175,54 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_slint_media_source_filter = ui_weak.clone();
     let backend_service_filter = backend_service.clone();
 
+    let filter_ws_tx = ws_tx.clone();
     slint_media_source.on_filter({
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
-            println!("onfilter {}", query);
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_filter_results(ModelRc::default());
-            backend_service_filter.media_source_filter(query.to_string());
+            // backend_service_filter.media_source_filter(query.to_string());
+            let msg = r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#;
+            let _ = filter_ws_tx.send(msg.to_string());
         }
     });
 
     let ui_slint_media_source_find = ui_weak.clone();
     let backend_service_find = backend_service.clone();
+    let find_ws_tx = ws_tx.clone();
+
     slint_media_source.on_find({
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
-            backend_service_find.media_source_find(id.to_string());
+            // backend_service_find.media_source_find(id.to_string());
+            println!("find");
+            let msg = r#"{"jsonrpc": "2.0", "method":"media_source_find", "params": {"id":"2"}, "id": "1"}"#;
+            let _ = find_ws_tx.send(msg.to_string());
         }
     });
 
-    backend_service.run_in_background();
+
+    std::thread::spawn(move || {
+        while let Some(msg) = ws_rx.blocking_recv() {
+            /*
+            let ui = ui_handle.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui.upgrade() {
+                    println!("Received from WS: {msg}");
+                    // ui.set_something(msg.into());
+                }
+            })
+                .unwrap();
+
+             */
+            println!("Received from WS: {msg}");
+        }
+    });
+
+    // backend_service.run_in_background();
     ui.run()
 }
