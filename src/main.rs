@@ -1,40 +1,18 @@
 slint::include_modules!();
 
-use std::iter;
-use crate::nanowave_service::NanoWaveService;
+use crate::tokio_background_tasks::start_tokio_background_tasks;
+use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
-use std::rc::Rc;
-use tungstenite::{connect, Message};
-use url::Url;
-use crate::websockets::start_websocket_runtime;
+use std::iter;
 
-mod nanowave_service;
-mod websockets;
+mod tokio_background_tasks;
 
 fn main() -> Result<(), slint::PlatformError> {
-    /*
-    // Change this to your actual WebSocket URL
-    let url = Url::parse("ws://localhost:8080").unwrap();
 
-    let (mut socket, _response) = connect(url.to_string()).expect("Failed to connect");
+    // let url_string = "ws://127.0.0.1:8080";
+    // let (ws_tx, mut ws_rx) = start_websocket_runtime(url_string.to_string());
 
-    let msg = r#"{"jsonrpc":"2.0","method":"media_source_filter","params":{"query":"2"},"id":"1"}"#;
-
-    socket
-        .write_message(Message::Text(msg.into()))
-        .expect("Failed to send message");
-
-    println!("Message sent");
-    */
-
-    let url_string = "ws://127.0.0.1:8080";
-    let (ws_tx, mut ws_rx) = start_websocket_runtime(url_string.to_string());
-
-
-
-
-
-
+    start_tokio_background_tasks();
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
@@ -109,9 +87,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
 
-    let backend_service = Rc::new(NanoWaveService::new());
+    // let backend_service = Rc::new(NanoWaveService::new());
 
-    let ui_backend_service = ui_weak.clone();
+    // let ui_backend_service = ui_weak.clone();
 
 
     /*
@@ -122,12 +100,12 @@ fn main() -> Result<(), slint::PlatformError> {
     */
 
 
-    backend_service.on_message_received(move |msg| {
+    // backend_service.on_message_received(move |msg| {
         // let ui = ui_slint_media_source_response.upgrade().unwrap();
         // let slint_media_source = ui.global::<SlintMediaSource>();
 
 
-        println!("Received: {}", msg);
+        // println!("Received: {}", msg);
 
 
         /*
@@ -167,30 +145,30 @@ fn main() -> Result<(), slint::PlatformError> {
         }
 
          */
-    });
+    // });
 
     let slint_media_source = ui.global::<SlintMediaSource>();
 
 
+    // let backend_service_filter = backend_service.clone();
     let ui_slint_media_source_filter = ui_weak.clone();
-    let backend_service_filter = backend_service.clone();
-
-    let filter_ws_tx = ws_tx.clone();
+    // let filter_ws_tx = ws_tx.clone();
     slint_media_source.on_filter({
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_filter_results(ModelRc::default());
+            println!("on_filter query: {}",query);
             // backend_service_filter.media_source_filter(query.to_string());
-            let msg = r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#;
-            let _ = filter_ws_tx.send(msg.to_string());
+            // let msg = r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#;
+            // let _ = filter_ws_tx.send(msg.to_string());
         }
     });
 
+    // let backend_service_find = backend_service.clone();
     let ui_slint_media_source_find = ui_weak.clone();
-    let backend_service_find = backend_service.clone();
-    let find_ws_tx = ws_tx.clone();
+    // let find_ws_tx = ws_tx.clone();
 
     slint_media_source.on_find({
         let ui = ui_slint_media_source_find.upgrade().unwrap();
@@ -199,30 +177,86 @@ fn main() -> Result<(), slint::PlatformError> {
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
             // backend_service_find.media_source_find(id.to_string());
-            println!("find");
-            let msg = r#"{"jsonrpc": "2.0", "method":"media_source_find", "params": {"id":"2"}, "id": "1"}"#;
-            let _ = find_ws_tx.send(msg.to_string());
+            println!("on_find id: {}", id);
+            // let msg = r#"{"jsonrpc": "2.0", "method":"media_source_find", "params": {"id":"2"}, "id": "1"}"#;
+            // let _ = find_ws_tx.send(msg.to_string());
         }
     });
 
 
+    /*
+    let ui_slint_media_source_write_back = ui_weak.clone();
     std::thread::spawn(move || {
         while let Some(msg) = ws_rx.blocking_recv() {
-            /*
-            let ui = ui_handle.clone();
-            slint::invoke_from_event_loop(move || {
-                if let Some(ui) = ui.upgrade() {
-                    println!("Received from WS: {msg}");
-                    // ui.set_something(msg.into());
-                }
-            })
-                .unwrap();
 
-             */
-            println!("Received from WS: {msg}");
+            if let Ok(response) = serde_json::from_str::<JsonRpcResponse>(&msg) {
+                if response.error.is_some() {
+                    println!("error: {}", response.error.unwrap());
+                    continue;
+                }
+                // Todo: get type of response.id
+                //
+                if response.result.is_none() {
+                    println!("no result");
+                    continue;
+                }
+
+                let res = response.result.unwrap();
+
+
+
+                //let media_items: Vec<MediaItem> = maybe_value
+    //.and_then(|v| serde_json::from_value(v).ok())
+    //.unwrap_or_default();
+
+
+            }
+
         }
-    });
+        */
+
+        /*
+        match msg {
+            Ok(Message::Text(txt)) => {
+                if let Ok(value) = serde_json::from_str::<Value>(&txt) {
+                    if let Some(cb) = on_message.lock().unwrap().clone() {
+                        slint::invoke_from_event_loop(move || {
+                            cb(value);
+                        })
+                            .ok();
+                    }
+                }
+            }
+            Ok(_) => {}
+            Err(_) => break,
+        }
+        */
+
+        /*
+        let ui = ui_handle.clone();
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui.upgrade() {
+                println!("Received from WS: {msg}");
+                // ui.set_something(msg.into());
+            }
+        })
+            .unwrap();
+
+         */
+        // println!("Received from WS: {msg}");
+    // });
 
     // backend_service.run_in_background();
     ui.run()
 }
+
+/*
+#[derive(Serialize, Deserialize)]
+pub struct JsonRpcResponse {
+    jsonrpc: String,
+    result: Option<Value>,
+    error: Option<Value>,
+    id: Value,
+}
+
+ */

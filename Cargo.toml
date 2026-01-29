@@ -15,7 +15,7 @@ url = "2.5"
 tungstenite = "0.28.0"
 crossbeam-channel = "0.5"
 anyhow = "1.0.100"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tokio-tungstenite = "0.28.0"
 
 [build-dependencies]
