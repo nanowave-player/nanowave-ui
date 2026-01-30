@@ -3,7 +3,7 @@ use std::thread;
 use std::time::Duration;
 use media_source::media_source_item::MediaSourceItem;
 use crate::background::database_updater::DatabaseUpdater;
-use crate::background::file_scanner::FileScanner;
+use crate::background::file_scanner::{extension_filter, FileScanner};
 use crate::background::media_analyzer::MediaAnalyzer;
 
 mod file_scanner;
@@ -38,7 +38,8 @@ pub async fn background_tasks(base_path_str: &str) {
 
     tokio::spawn(async {
         let file_scanner = FileScanner::new(base_path, file_tx);
-        file_scanner.scan_files().await
+        let filter = extension_filter(vec!["mp3", "flac", "wav"]);
+        file_scanner.scan_files(filter).await
     });
 
 
