@@ -1,23 +1,18 @@
 slint::include_modules!();
 
-use crate::tokio_background_tasks::start_tokio_background_tasks;
-use serde::{Deserialize, Serialize};
+use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::iter;
 
-mod tokio_background_tasks;
+mod background;
 
 fn main() -> Result<(), slint::PlatformError> {
 
-    // let url_string = "ws://127.0.0.1:8080";
-    // let (ws_tx, mut ws_rx) = start_websocket_runtime(url_string.to_string());
-
-    start_tokio_background_tasks();
+    let base_path = "media/";
+    start_tokio_background_tasks(base_path);
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
-
-
 
     let navigation = ui.global::<SlintNavigation>();
     let ui_nav = ui_weak.clone();
@@ -80,73 +75,6 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
 
-
-
-
-
-
-
-
-    // let backend_service = Rc::new(NanoWaveService::new());
-
-    // let ui_backend_service = ui_weak.clone();
-
-
-    /*
-    // UI → service command
-    ui.on_play_requested(move |media_id: SharedString| {
-        backend_service_clone.play_media(media_id.to_string());
-    });
-    */
-
-
-    // backend_service.on_message_received(move |msg| {
-        // let ui = ui_slint_media_source_response.upgrade().unwrap();
-        // let slint_media_source = ui.global::<SlintMediaSource>();
-
-
-        // println!("Received: {}", msg);
-
-
-        /*
-        while let Some(event) = source_evt_rx.recv().await {
-            if let Some(ui) = ui_handle.upgrade() {
-                let inner = ui.global::<SlintMediaSource>();
-
-                match event {
-                    MediaSourceEvent::FilterResults(items) => {
-                        inner.set_filter_results(slint_helpers::utils::rust_items_to_slint_model(items, false));
-                    }
-                    MediaSourceEvent::FindResult(opt_item) => {
-                        if let Some(item) = opt_item {
-                            inner.set_find_results(slint_helpers::utils::rust_items_to_slint_model(vec![item], true));
-                        } else {
-                            // clear results if nothing found
-                            inner.set_find_results(slint::ModelRc::default());
-                        }
-                    }
-                }
-            } else {
-                // UI was dropped; stop listening
-                break;
-            }
-        }
-         */
-
-
-        /*
-        let timestamp = msg
-            .get("params")
-            .and_then(|p| p.get("timestamp"))
-            .and_then(|t| t.as_str());
-
-        if let (Some(ts), Some(ui)) = (timestamp, ui_backend_service.upgrade()) {
-            ui.set_status(ts.into());
-        }
-
-         */
-    // });
-
     let slint_media_source = ui.global::<SlintMediaSource>();
 
 
@@ -183,80 +111,5 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-
-    /*
-    let ui_slint_media_source_write_back = ui_weak.clone();
-    std::thread::spawn(move || {
-        while let Some(msg) = ws_rx.blocking_recv() {
-
-            if let Ok(response) = serde_json::from_str::<JsonRpcResponse>(&msg) {
-                if response.error.is_some() {
-                    println!("error: {}", response.error.unwrap());
-                    continue;
-                }
-                // Todo: get type of response.id
-                //
-                if response.result.is_none() {
-                    println!("no result");
-                    continue;
-                }
-
-                let res = response.result.unwrap();
-
-
-
-                //let media_items: Vec<MediaItem> = maybe_value
-    //.and_then(|v| serde_json::from_value(v).ok())
-    //.unwrap_or_default();
-
-
-            }
-
-        }
-        */
-
-        /*
-        match msg {
-            Ok(Message::Text(txt)) => {
-                if let Ok(value) = serde_json::from_str::<Value>(&txt) {
-                    if let Some(cb) = on_message.lock().unwrap().clone() {
-                        slint::invoke_from_event_loop(move || {
-                            cb(value);
-                        })
-                            .ok();
-                    }
-                }
-            }
-            Ok(_) => {}
-            Err(_) => break,
-        }
-        */
-
-        /*
-        let ui = ui_handle.clone();
-        slint::invoke_from_event_loop(move || {
-            if let Some(ui) = ui.upgrade() {
-                println!("Received from WS: {msg}");
-                // ui.set_something(msg.into());
-            }
-        })
-            .unwrap();
-
-         */
-        // println!("Received from WS: {msg}");
-    // });
-
-    // backend_service.run_in_background();
     ui.run()
 }
-
-/*
-#[derive(Serialize, Deserialize)]
-pub struct JsonRpcResponse {
-    jsonrpc: String,
-    result: Option<Value>,
-    error: Option<Value>,
-    id: Value,
-}
-
- */
