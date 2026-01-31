@@ -4,7 +4,12 @@ use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::iter;
 
+
 mod background;
+mod database_wrapper;
+mod entity;
+mod migrator;
+mod file_utils;
 
 fn main() -> Result<(), slint::PlatformError> {
 

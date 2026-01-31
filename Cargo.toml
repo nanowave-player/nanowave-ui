@@ -13,7 +13,14 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 walkdir = "2.5.0"
 media_source = "0.1.0"
 sea-orm = { version = "2.0.0-rc.30", features = [ "sqlx-sqlite", "macros", "runtime-tokio", "debug-print", "with-chrono", "with-json" ] }
+sea-orm-migration = "2.0.0-rc.30"
 tracing = "0.1.44"
+chrono = "0.4.43"
+file-id = "0.2.3"
+lofty = "0.22.4"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
+mp4ameta = "0.13.0"
+image = "0.25.9"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)
@@ -22,4 +29,5 @@ media_source = { path = "../media_source/" } # use for local git (see cargo.toml
 
 [build-dependencies]
 slint-build = "1.15.0"
+
 
