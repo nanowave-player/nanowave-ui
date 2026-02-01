@@ -121,7 +121,7 @@ impl MetadataRetriever {
         let duration = properties.duration();
 
         if tag_result.is_none() {
-            return Ok(self.empty_metadata());
+            return Ok(MediaSourceMetadata::empty());
         }
         let tag = tag_result.unwrap();
         let mut media_source_metadata = MediaSourceMetadata::new(
@@ -233,21 +233,6 @@ impl MetadataRetriever {
         }
         MediaSourceImageCodec::Unknown
     }
-
-    pub fn empty_metadata(&self) -> MediaSourceMetadata {
-        MediaSourceMetadata {
-            artist: None,
-            title: None,
-            album: None,
-            genre: None,
-            composer: None,
-            series: None,
-            part: None,
-            cover: None,
-            chapters: vec![],
-        }
-    }
-
 }
 
 

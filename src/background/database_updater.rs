@@ -1,4 +1,6 @@
 use chrono::Utc;
+use media_source::media_source_item::MediaSourceItem;
+use media_source::media_source_metadata::MediaSourceMetadata;
 use sea_orm::DatabaseConnection;
 use crate::background::database_upsert_item::DatabaseUpsertItem;
 use crate::background::metadata_retriever::MetadataRetriever;
@@ -24,10 +26,27 @@ impl DatabaseUpdater {
         &mut self
     ) -> anyhow::Result<()> {
         while let Some(upsert_item) = self.rx.recv().await {
-            
+            self.upsert_item(upsert_item).await;
         }
         
         Ok(())
+    }
+    async fn upsert_item(&self, upsert_item: DatabaseUpsertItem) {
+        let db = self.db.clone();
+        let now = Utc::now();
+        let meta = if let Some(media_source_item) = upsert_item.media_source_item {
+            media_source_item.metadata.clone()
+        } else {
+            MediaSourceMetadata::empty()
+        };
+        
+        let cover = meta.cover.clone();
+
+        let cover_hash = if cover.is_some() {
+            cover.unwrap().hash
+        } else {
+            String::from("")
+        };
     }
 
 /*
@@ -118,4 +137,5 @@ impl DatabaseUpdater {
         }
     }
 */
+
 }
