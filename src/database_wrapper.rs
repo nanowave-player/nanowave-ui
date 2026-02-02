@@ -1,8 +1,8 @@
 use crate::entity::{item, items_json_metadata, items_metadata, items_progress_history};
-use sea_orm::{Database, DatabaseConnection, DatabaseConnectionType};
-use std::path::Path;
-use sea_orm_migration::MigratorTrait;
 use crate::migrator::Migrator;
+use sea_orm::{Database, DatabaseConnection};
+use sea_orm_migration::MigratorTrait;
+use std::path::Path;
 
 pub struct DatabaseWrapper {
     db_url: String,

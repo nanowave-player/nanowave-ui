@@ -1,12 +1,11 @@
-use crate::background::database_existence_checker::{DatabaseExistenceChecker};
+use crate::background::database_existence_checker::DatabaseExistenceChecker;
+use crate::background::database_updater::DatabaseUpdater;
+use crate::background::database_upsert_item::DatabaseUpsertItem;
 use crate::background::file_scanner::{extension_filter, FileScanner, FileScannerAction};
+use crate::background::metadata_retriever::MetadataRetriever;
 use crate::database_wrapper::DatabaseWrapper;
 use std::path::PathBuf;
 use std::thread;
-use std::time::Duration;
-use crate::background::database_updater::DatabaseUpdater;
-use crate::background::database_upsert_item::DatabaseUpsertItem;
-use crate::background::metadata_retriever::MetadataRetriever;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -35,7 +34,6 @@ pub fn start_tokio_background_tasks(base_path_str: &str) {
 }
 
 pub async fn background_tasks(base_path_str: &str) {
-    println!("background_tasks with {}", base_path_str);
 
     let base_path = PathBuf::from(base_path_str.to_string().clone());
     let base_path_clone = PathBuf::from(base_path_str.to_string().clone());

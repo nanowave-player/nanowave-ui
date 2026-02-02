@@ -1,13 +1,11 @@
+use crate::background::database_upsert_item::DatabaseUpsertItem;
+use crate::entity::item::MediaType;
+use crate::entity::{item, items_json_metadata, items_metadata};
 use chrono::{DateTime, Utc};
-use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_metadata::MediaSourceMetadata;
 use media_source::media_type;
-use sea_orm::{DatabaseConnection, HasManyModel};
 use sea_orm::sea_query::prelude::serde_json;
-use crate::background::database_upsert_item::DatabaseUpsertItem;
-use crate::background::metadata_retriever::MetadataRetriever;
-use crate::entity::{item, items_json_metadata, items_metadata};
-use crate::entity::item::MediaType;
+use sea_orm::{DatabaseConnection, HasManyModel};
 
 pub struct DatabaseUpdater {
     db: DatabaseConnection,
@@ -30,7 +28,6 @@ impl DatabaseUpdater {
         &mut self
     ) -> anyhow::Result<()> {
         while let Some(upsert_item) = self.rx.recv().await {
-            println!("{:?}", upsert_item);
             self.upsert_item(upsert_item).await;
         }
         
@@ -129,7 +126,7 @@ impl DatabaseUpdater {
 
         }
 
-        let res = result.save(&db).await;
+        let _ = result.save(&db).await;
 
         // res.unwrap()
 

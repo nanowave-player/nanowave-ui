@@ -45,7 +45,7 @@ impl MetadataRetriever {
         &mut self
     ) -> anyhow::Result<()> {
         let base_path = self.base_path.clone();
-        let cache_path = format!("{}/{}", base_path.clone().trim_end_matches("/"), "cache/");
+        let cache_path = format!("{}/{}", base_path.clone().trim_end_matches("/"), ".cache/");
 
         while let Some(upsert_item) = self.rx.recv().await {
 

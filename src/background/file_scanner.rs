@@ -29,11 +29,8 @@ impl FileScanner {
                 FileScannerAction::ScanFiles => {
                     let root = self.root.clone();
                     for entry in walkdir::WalkDir::new(root) {
-                        println!("{:?}", entry);
                         let entry = entry?;
                         if entry.file_type().is_file() && filter(entry.path()) {
-                            println!("file_scanner sending {:?}", entry.path());
-
                             if let Err(_) = self.tx.send(entry.path().to_path_buf()).await {
                                 break; // downstream closed
                             }

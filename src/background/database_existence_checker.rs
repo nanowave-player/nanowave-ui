@@ -1,17 +1,16 @@
-use sea_orm::{ColumnTrait, DbErr};
-use sea_orm::QueryFilter;
-use std::path::PathBuf;
-use chrono::{DateTime, Utc};
-use file_id::FileId;
-use sea_orm::EntityTrait;
 use crate::background::database_upsert_item::DatabaseUpsertItem;
 use crate::entity::item;
 use crate::entity::item::Model;
+use chrono::{DateTime, Utc};
+use file_id::FileId;
+use sea_orm::EntityTrait;
+use sea_orm::QueryFilter;
+use sea_orm::ColumnTrait;
+use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub enum DatabaseExistenceCheckerError {
-    FileId,
-    Database(DbErr),
-
+    // FileId,
+    Database// (DbErr),
 }
 
 
@@ -39,7 +38,6 @@ impl DatabaseExistenceChecker {
     ) -> anyhow::Result<()> {
         while let Some(file) = self.rx.recv().await {
 
-            println!("db_existance_checker receiving: {:?}", file);
 
             let file_id_result = file_id::get_file_id(file.as_path());
             if file_id_result.is_err() {
@@ -59,7 +57,7 @@ impl DatabaseExistenceChecker {
 
             let existing_record_option = existing_record_result.unwrap();
             if !self.needs_upsert(&file, &existing_record_option) {
-                println!("db_existance_checker no upsert needed: {:?}", file);
+                // println!("db_existance_checker no upsert needed: {:?}", file);
                 continue;
             }
 
@@ -70,7 +68,6 @@ impl DatabaseExistenceChecker {
                 media_source_item: None,
                 model: existing_record_option,
             };
-            println!("db_existance_checker update required");
 
             self.tx.send(upsert_item).await?;
 
@@ -93,7 +90,6 @@ impl DatabaseExistenceChecker {
 
              */
         }
-        println!("db_existance_checker exiting");
         Ok(())
     }
 
@@ -108,7 +104,7 @@ impl DatabaseExistenceChecker {
             .await;
 
         if item_result.is_err() {
-            return Err(DatabaseExistenceCheckerError::Database(item_result.unwrap_err()));
+            return Err(DatabaseExistenceCheckerError::Database); //(item_result.unwrap_err()));
         }
 
         Ok(item_result.unwrap())
