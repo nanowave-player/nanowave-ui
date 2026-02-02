@@ -1,30 +1,47 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+pub enum FileScannerAction {
+    ScanFiles
+}
+
 pub struct FileScanner {
     root: PathBuf,
+    rx: tokio::sync::mpsc::Receiver<FileScannerAction>,
     tx: tokio::sync::mpsc::Sender<PathBuf>
 }
 
 impl FileScanner {
-    pub fn new(root: PathBuf, tx: tokio::sync::mpsc::Sender<PathBuf>) -> Self {
+    pub fn new(root: PathBuf, rx: tokio::sync::mpsc::Receiver<FileScannerAction>, tx: tokio::sync::mpsc::Sender<PathBuf>) -> Self {
         Self {
             root,
+            rx,
             tx
         }
     }
     pub async fn scan_files<F>(
-        &self, filter: F
+        &mut self, filter: F
     ) -> anyhow::Result<()> where
         F: Fn(&Path) -> bool + Send + Sync,{
-        let root = self.root.clone();
-        for entry in walkdir::WalkDir::new(root) {
-            let entry = entry?;
-            if entry.file_type().is_file() && filter(entry.path()) {
-                if let Err(_) = self.tx.send(entry.path().to_path_buf()).await {
-                    break; // downstream closed
+
+        while let Some(action) = self.rx.recv().await {
+            match action {
+                FileScannerAction::ScanFiles => {
+                    let root = self.root.clone();
+                    for entry in walkdir::WalkDir::new(root) {
+                        println!("{:?}", entry);
+                        let entry = entry?;
+                        if entry.file_type().is_file() && filter(entry.path()) {
+                            println!("file_scanner sending {:?}", entry.path());
+
+                            if let Err(_) = self.tx.send(entry.path().to_path_buf()).await {
+                                break; // downstream closed
+                            }
+                        }
+                    }
                 }
             }
+
         }
         Ok(())
     }
