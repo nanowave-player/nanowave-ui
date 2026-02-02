@@ -4,6 +4,7 @@ use sea_orm::{Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
 use std::path::Path;
 
+#[derive(Debug, Clone)]
 pub struct DatabaseWrapper {
     db_url: String,
     db_exists: bool
@@ -40,4 +41,5 @@ impl DatabaseWrapper {
         Migrator::up(&db, None).await?;
         Ok(db)
     }
+    
 }

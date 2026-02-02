@@ -1,23 +1,30 @@
 slint::include_modules!();
 
+use crate::background::media_source::{FilterCommand, FindCommand, MediaSourceCommand};
+use crate::config::Config;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::iter;
-
 
 mod background;
 mod database_wrapper;
 mod entity;
 mod migrator;
 mod file_utils;
+mod config;
+mod slint_utils;
 
 fn main() -> Result<(), slint::PlatformError> {
-
     let base_path = "media/";
-    start_tokio_background_tasks(base_path);
+    let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
+
+    start_tokio_background_tasks(Config::new(base_path.to_string()), media_source_rx);
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
+
+    let ui_slint_media_source_filter = ui_weak.clone();
+    let ui_slint_media_source_find = ui_weak.clone();
 
     let navigation = ui.global::<SlintNavigation>();
     let ui_nav = ui_weak.clone();
@@ -84,35 +91,93 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     // let backend_service_filter = backend_service.clone();
-    let ui_slint_media_source_filter = ui_weak.clone();
+
     // let filter_ws_tx = ws_tx.clone();
+    let filter_tx = media_source_tx.clone();
     slint_media_source.on_filter({
+
+        let ui = ui_slint_media_source_filter.upgrade().unwrap();
+        move |query| {
+            let ui_weak_find = ui.as_weak().clone();
+            let cmd = MediaSourceCommand::Filter(FilterCommand {
+                query: query.to_string(),
+                callback: Box::new(|items| {
+                    slint::invoke_from_event_loop(move || {
+                        let Some(ui) = ui_weak_find.upgrade() else {
+                            return;
+                        };
+
+                        let media_source = ui.global::<SlintMediaSource>();
+                        media_source.set_filter_results(
+                            slint_utils::rust_items_to_slint_model(items, true),
+                        );
+
+                        media_source.set_is_loading(false);
+                    }).unwrap();
+                }),
+            });
+
+            let media_source = ui.global::<SlintMediaSource>();
+            media_source.set_is_loading(true);
+            media_source.set_find_results(ModelRc::default());
+            filter_tx.send(cmd).ok();
+        }
+
+        /*
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_filter_results(ModelRc::default());
             println!("on_filter query: {}",query);
-            // backend_service_filter.media_source_filter(query.to_string());
-            // let msg = r#"{"jsonrpc": "2.0", "method":"media_source_filter", "params": {"query":"2"}, "id": "1"}"#;
-            // let _ = filter_ws_tx.send(msg.to_string());
+
+            let cmd = MediaSourceCommand::Filter(FilterCommand {
+                query: query.to_string(),
+                callback: Box::new(|items| {
+                    println!("Found {} items", items.len());
+                }),
+            });
+
+            filter_tx.send(cmd).ok();
+
         }
+
+         */
     });
 
     // let backend_service_find = backend_service.clone();
-    let ui_slint_media_source_find = ui_weak.clone();
     // let find_ws_tx = ws_tx.clone();
+    let find_tx = media_source_tx.clone();
 
     slint_media_source.on_find({
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
+            let ui_weak_find = ui.as_weak().clone();
+            let cmd = MediaSourceCommand::Find(FindCommand {
+                id: id.to_string(),
+                callback: Box::new(|item_option| {
+                    slint::invoke_from_event_loop(move || {
+                        let Some(ui) = ui_weak_find.upgrade() else {
+                            return;
+                        };
+
+                        let media_source = ui.global::<SlintMediaSource>();
+                        if let Some(item) = item_option {
+                            media_source.set_find_results(
+                                slint_utils::rust_items_to_slint_model(vec![item], true),
+                            );
+                        } else {
+                            media_source.set_find_results(ModelRc::default());
+                        }
+                        media_source.set_is_loading(false);
+                    }).unwrap();
+                }),
+            });
+
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
-            // backend_service_find.media_source_find(id.to_string());
-            println!("on_find id: {}", id);
-            // let msg = r#"{"jsonrpc": "2.0", "method":"media_source_find", "params": {"id":"2"}, "id": "1"}"#;
-            // let _ = find_ws_tx.send(msg.to_string());
+            find_tx.send(cmd).ok();
         }
     });
 
