@@ -28,9 +28,9 @@ pub fn start_tokio_background_tasks(config: Config,
                                     player_tx: UnboundedSender<PlayerCommand>,
                                     player_rx: UnboundedReceiver<PlayerCommand>,
                                     player_evt_tx: UnboundedSender<PlayerEvent>,
-                                    player_evt_rx: UnboundedReceiver<PlayerEvent>) {
+                                    ) {
     thread::spawn(move || {
-        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(&config, media_source_tx, media_source_rx, player_tx, player_rx, player_evt_tx, player_evt_rx));
+        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(&config, media_source_tx, media_source_rx, player_tx, player_rx, player_evt_tx));
     });
 
     /*
@@ -47,13 +47,12 @@ pub fn start_tokio_background_tasks(config: Config,
     */
 }
 
-pub async fn background_tasks(config: &Config, 
-                              media_source_tx: UnboundedSender<MediaSourceCommand>, 
-                              media_source_rx: UnboundedReceiver<MediaSourceCommand>, 
-                              player_tx: UnboundedSender<PlayerCommand>, 
-                              player_rx: UnboundedReceiver<PlayerCommand>, 
-                              player_evt_tx: UnboundedSender<PlayerEvent>, 
-                              player_evt_rx: UnboundedReceiver<PlayerEvent>
+pub async fn background_tasks(config: &Config,
+                              media_source_tx: UnboundedSender<MediaSourceCommand>,
+                              media_source_rx: UnboundedReceiver<MediaSourceCommand>,
+                              player_tx: UnboundedSender<PlayerCommand>,
+                              player_rx: UnboundedReceiver<PlayerCommand>,
+                              player_evt_tx: UnboundedSender<PlayerEvent>
 ) {
 
     // let base_path_str = config.base_path.clone();
@@ -114,7 +113,7 @@ pub async fn background_tasks(config: &Config,
 
         let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_rx, player_evt_tx).await;
     });
-    
+
 
     let _ = file_scanner_tx.send(FileScannerAction::ScanFiles).await;
 

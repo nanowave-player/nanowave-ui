@@ -3,7 +3,7 @@ slint::include_modules!();
 use crate::background::media_source::{FilterCommand, FindCommand, MediaSourceCommand};
 use crate::config::Config;
 use background::start_tokio_background_tasks;
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -21,7 +21,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
-    let (player_evt_tx, player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
+    let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
@@ -29,8 +29,8 @@ fn main() -> Result<(), slint::PlatformError> {
                                  media_source_rx,
                                  player_cmd_tx.clone(),
                                  player_cmd_rx,
-                                 player_evt_tx.clone(),
-                                 player_evt_rx
+                                 player_evt_tx.clone()
+
     );
 
     let ui = MainWindow::new()?;
@@ -226,6 +226,45 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
 
+    let ui_handle_player = ui.as_weak();
+
+
+    slint::spawn_local(async move {
+
+        while let Some(event) = player_evt_rx.recv().await {
+            if let Some(ui) = ui_handle_player.upgrade() {
+                let inner = ui.global::<SlintAudioPlayer>();
+
+                match event {
+                    PlayerEvent::Status(item_id, status) => {
+                        inner.set_current_item_id(item_id.to_shared_string());
+                        inner.set_status(status.to_shared_string());
+                    }
+
+                    PlayerEvent::Stopped => {}
+
+                    PlayerEvent::Position(item_id, position) => {
+                        inner.set_current_item_id(item_id.to_shared_string());
+                        inner.set_position_formatted(format_duration(position).to_shared_string());
+                    }
+                }
+            } else {
+                // UI was dropped; stop listening
+                break;
+            }
+        }
+    })
+        .unwrap();
+
 
     ui.run()
+}
+
+pub fn format_duration(duration: Duration) -> String {
+    let millis = duration.as_millis();
+    let secs = millis / 1000;
+    let h = secs / (60 * 60);
+    let m = (secs / 60) % 60;
+    let s = secs % 60;
+    format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }
