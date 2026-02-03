@@ -125,10 +125,6 @@ impl FileMediaSource {
 
 #[async_trait]
 impl MediaSource for FileMediaSource {
-    fn id(&self) -> String {
-        self.config.base_path.clone()
-    }
-
     async fn filter(&self, query: &str) -> Vec<MediaSourceItem> {
         let db = self.db.clone();
 
