@@ -5,8 +5,9 @@ use crate::config::Config;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::iter;
+use std::time::Duration;
 use tokio::sync::mpsc;
-use crate::background::player::PlayerEvent;
+use crate::background::player::{PlayerCommand, PlayerEvent};
 
 mod background;
 mod database_wrapper;
@@ -162,6 +163,67 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
 
+
+    let slint_audio_player = ui.global::<SlintAudioPlayer>();
+    slint_audio_player.on_play_test({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::PlayTest()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_play_media({
+        let tx = player_cmd_tx.clone();
+        move |file_name: SharedString| {
+            tx.send(PlayerCommand::PlayMedia(file_name.to_string()))
+                .unwrap();
+        }
+    });
+
+    slint_audio_player.on_play({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::Play()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_pause({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::Pause()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_next({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::Next()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_previous({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::Previous()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_seek_relative({
+        let tx = player_cmd_tx.clone();
+        move |millis_i64| {
+            tx.send(PlayerCommand::SeekRelative(millis_i64)).unwrap();
+        }
+    });
+
+    slint_audio_player.on_seek_to({
+        let tx = player_cmd_tx.clone();
+        move |millis_i64: i64| {
+            tx.send(PlayerCommand::SeekTo(Duration::from_millis(
+                millis_i64 as u64,
+            )))
+                .unwrap();
+        }
+    });
 
 
 
