@@ -5,10 +5,12 @@ use crate::background::file_scanner::{extension_filter, FileScanner, FileScanner
 use crate::background::metadata_retriever::MetadataRetriever;
 use crate::database_wrapper::DatabaseWrapper;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::thread;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::file_media_source::FileMediaSource;
 use crate::background::media_source::MediaSourceCommand;
+use crate::background::player::{Player, PlayerCommand, PlayerEvent};
 use crate::config::Config;
 
 mod file_scanner;
@@ -18,10 +20,17 @@ mod metadata_retriever;
 mod database_upsert_item;
 mod file_media_source;
 pub(crate) mod media_source;
+pub(crate) mod player;
 
-pub fn start_tokio_background_tasks(config: Config, media_source_rx: UnboundedReceiver<MediaSourceCommand>) {
+pub fn start_tokio_background_tasks(config: Config,
+                                    media_source_tx: UnboundedSender<MediaSourceCommand>,
+                                    media_source_rx: UnboundedReceiver<MediaSourceCommand>,
+                                    player_tx: UnboundedSender<PlayerCommand>,
+                                    player_rx: UnboundedReceiver<PlayerCommand>,
+                                    player_evt_tx: UnboundedSender<PlayerEvent>,
+                                    player_evt_rx: UnboundedReceiver<PlayerEvent>) {
     thread::spawn(move || {
-        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(&config, media_source_rx));
+        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(&config, media_source_tx, media_source_rx, player_tx, player_rx, player_evt_tx, player_evt_rx));
     });
 
     /*
@@ -38,7 +47,14 @@ pub fn start_tokio_background_tasks(config: Config, media_source_rx: UnboundedRe
     */
 }
 
-pub async fn background_tasks(config: &Config, media_source_rx: UnboundedReceiver<MediaSourceCommand>) {
+pub async fn background_tasks(config: &Config, 
+                              media_source_tx: UnboundedSender<MediaSourceCommand>, 
+                              media_source_rx: UnboundedReceiver<MediaSourceCommand>, 
+                              player_tx: UnboundedSender<PlayerCommand>, 
+                              player_rx: UnboundedReceiver<PlayerCommand>, 
+                              player_evt_tx: UnboundedSender<PlayerEvent>, 
+                              player_evt_rx: UnboundedReceiver<PlayerEvent>
+) {
 
     // let base_path_str = config.base_path.clone();
     // let base_path = PathBuf::from(base_path_str.to_string().clone());
@@ -86,12 +102,21 @@ pub async fn background_tasks(config: &Config, media_source_rx: UnboundedReceive
         let _ = DatabaseUpdater::new(db, meta_retriever_rx).update_items().await;
     });
 
-    let config_media_source = config.clone();
+    let media_source = FileMediaSource::new(config.clone(), db_media_source);
+    let media_source_player = media_source.clone();
     let media_source_task = tokio::spawn(async {
-        let _ = FileMediaSource::new(config_media_source, db_media_source).run(media_source_rx).await;
+        let _ = media_source.run(media_source_rx).await;
     });
+
+    let player_task = tokio::spawn(async {
+        let preferred_device = "USB-C to 3.5mm Headphone Jack A".to_string();
+        let fallback_device = "pipewire".to_string();
+
+        let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_rx, player_evt_tx).await;
+    });
+    
 
     let _ = file_scanner_tx.send(FileScannerAction::ScanFiles).await;
 
-    let _ = tokio::join!(file_scanner_task, database_checker_task, metadata_retriever_task, database_updater_task, media_source_task);
+    let _ = tokio::join!(file_scanner_task, database_checker_task, metadata_retriever_task, database_updater_task, media_source_task, player_task);
 }

@@ -21,6 +21,8 @@ lofty = "0.22.4"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 mp4ameta = "0.13.0"
 image = "0.25.9"
+rodio = "0.21.1"
+cpal = "0.16.0"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)

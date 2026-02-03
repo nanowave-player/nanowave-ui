@@ -56,12 +56,14 @@ export component Details {
                 text: item.name;
             }
 
+            /*
             Button {
                 text: "Play";
                 clicked => {
                     SlintAudioPlayer.play_media(item.id);
                 }
             }
+            */
 
             for chapter in item.chapters: Text {
                 text: chapter.name;

@@ -5,6 +5,8 @@ use crate::config::Config;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::iter;
+use tokio::sync::mpsc;
+use crate::background::player::PlayerEvent;
 
 mod background;
 mod database_wrapper;
@@ -17,8 +19,18 @@ mod slint_utils;
 fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
+    let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
+    let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
-    start_tokio_background_tasks(Config::new(base_path.to_string()), media_source_rx);
+
+    start_tokio_background_tasks(Config::new(base_path.to_string()),
+                                 media_source_tx.clone(),
+                                 media_source_rx,
+                                 player_cmd_tx.clone(),
+                                 player_cmd_rx,
+                                 player_evt_tx.clone(),
+                                 player_evt_rx
+    );
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
@@ -91,9 +103,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     // let backend_service_filter = backend_service.clone();
+    let filter_tx = media_source_tx.clone();
 
     // let filter_ws_tx = ws_tx.clone();
-    let filter_tx = media_source_tx.clone();
     slint_media_source.on_filter({
 
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
@@ -180,6 +192,10 @@ fn main() -> Result<(), slint::PlatformError> {
             find_tx.send(cmd).ok();
         }
     });
+
+
+
+
 
     ui.run()
 }
