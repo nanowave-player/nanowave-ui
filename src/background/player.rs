@@ -46,7 +46,7 @@ pub enum PlayerEvent {
     Status(String, String),
     Position(String, Duration),
     Stopped,
-    ExternalTrigger(TriggerAction)
+    // ExternalTrigger(TriggerAction)
 }
 
 pub struct Player {
@@ -328,7 +328,7 @@ impl Player {
                         println!("============== cmd received ==============");
                         match cmd {
                             PlayerCommand::Update(s) => {
-                                self.play_media(s.clone()).await;
+                                let _ = self.play_media(s.clone()).await;
                                 // format!("Playing {}", x)
                                 // todo: implement player.is_playing / player.status
 
@@ -395,7 +395,7 @@ impl Player {
                             }
                             PlayerCommand::SeekRelative(millis) => {
                                 let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
-                                self.try_seek(Duration::from_millis(new_pos));
+                                let _ = self.try_seek(Duration::from_millis(new_pos));
                             }
                             PlayerCommand::SeekTo(_) => {},
                             // _ => {}

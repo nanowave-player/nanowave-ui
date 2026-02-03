@@ -1,15 +1,15 @@
-use std::path::Path;
-use std::rc::Rc;
+use crate::{SlintMediaSourceChapter, SlintMediaSourceItem};
 use media_source::media_source_item::MediaSourceItem;
-use slint::{ModelRc, Rgb8Pixel, SharedPixelBuffer, SharedString, ToSharedString, VecModel};
 use media_source::media_source_picture::MediaSourcePicture;
 use media_source::media_type::MediaType;
-use crate::{SlintMediaSourceChapter, SlintMediaSourceItem, SlintPreferences};
+use slint::{ModelRc, Rgb8Pixel, SharedPixelBuffer, SharedString, ToSharedString, VecModel};
+use std::path::Path;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadCoverResult {
     Image,
-    Placeholder,
+    // Placeholder,
     None,
 }
 

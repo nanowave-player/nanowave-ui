@@ -20,7 +20,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
-    let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
+    let (player_evt_tx, player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
@@ -45,8 +45,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let nav = ui.global::<SlintNavigation>();
         nav.set_route(value);
         let history_item = nav.get_route();
-        // inner_ui.global::<SlintNavigation>().
-        // inner_ui.global::<SlintNavigation>().set_history()
 
         let tmp_next_index = nav.get_history_index() + 1;
         let next_index = if tmp_next_index > 1000 {
@@ -67,8 +65,6 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history(ModelRc::new(history));
         nav.set_history_index(next_index);
     });
-
-
 
     let ui_back = ui_weak.clone();
     navigation.on_back(move || {
@@ -101,11 +97,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let slint_media_source = ui.global::<SlintMediaSource>();
 
-
-    // let backend_service_filter = backend_service.clone();
     let filter_tx = media_source_tx.clone();
-
-    // let filter_ws_tx = ws_tx.clone();
     slint_media_source.on_filter({
 
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
@@ -134,33 +126,9 @@ fn main() -> Result<(), slint::PlatformError> {
             media_source.set_find_results(ModelRc::default());
             filter_tx.send(cmd).ok();
         }
-
-        /*
-        let ui = ui_slint_media_source_filter.upgrade().unwrap();
-        move |query| {
-            let media_source = ui.global::<SlintMediaSource>();
-            media_source.set_is_loading(true);
-            media_source.set_filter_results(ModelRc::default());
-            println!("on_filter query: {}",query);
-
-            let cmd = MediaSourceCommand::Filter(FilterCommand {
-                query: query.to_string(),
-                callback: Box::new(|items| {
-                    println!("Found {} items", items.len());
-                }),
-            });
-
-            filter_tx.send(cmd).ok();
-
-        }
-
-         */
     });
 
-    // let backend_service_find = backend_service.clone();
-    // let find_ws_tx = ws_tx.clone();
     let find_tx = media_source_tx.clone();
-
     slint_media_source.on_find({
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
