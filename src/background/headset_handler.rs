@@ -1,127 +1,229 @@
+use crate::input_event::InputEventButton::{PlayPause, VolumeDecrease, VolumeIncrease};
+use crate::input_event::InputEventDevice::Headset;
+use crate::input_event::{InputEvent, InputEventAction};
 use evdev::{Device, EventSummary, KeyCode};
 use std::path::Path;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::input_event::InputEvent;
-/*
-let handle = thread::spawn(move || {
-        loop {
-            let device_paths = vec!["/dev/input/event1", "/dev/input/event13"];
-
-            let mut device_opt: Option<Device> = None;
-            for path_str in device_paths {
-                let path = Path::new(path_str);
-                if !Path::exists(path) {
-                    continue;
-                }
-                let device_result = Device::open(path_str);
-                if device_result.is_err() {
-                    continue;
-                }
-
-                let d = device_result.unwrap();
-                if d.name().is_some() && d.name().unwrap().contains("Apple") {
-                    device_opt = Some(d);
-                }
-
-            }
-
-
-            if device_opt.is_none() {
-                thread::sleep(Duration::from_millis(5000));
-                continue;
-            }
-
-            let mut device = device_opt.unwrap();
-
- */
 
 pub struct HeadsetHandler {}
-
-// InputEvent
-// Source: Headset
-// Key: PlayPause, VolUp, VolDown, Power
-// Direction: Down / Up
-//
-
-
 
 impl HeadsetHandler {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub async fn run(
-        &mut self,
-        device_paths: Vec<&str>, headset_tx: UnboundedSender<InputEvent>
-    )
-    {
+    pub async fn run(&mut self, device_paths: Vec<&str>, headset_tx: UnboundedSender<InputEvent>) {
         let mut device_option: Option<Device> = None;
+
+        /*
         loop {
-            for path_str in &device_paths {
-                let path = Path::new(path_str);
-                if !Path::exists(path) {
-                    continue;
-                }
-                let device_result = Device::open(path_str);
-                if device_result.is_err() {
-                    continue;
-                }
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            headset_tx.send(InputEvent::PlayPause).ok();
+            println!("sending InputEvent::PlayPause");
+        }
+        */
+        /*
+        LLM Sample
+        let path_str = "/dev/input/event13";
+        let mut device = Device::open(path_str).unwrap();
+        let (headset_tx, headset_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
 
-                let d = device_result.unwrap();
-                // todo: this is limiting everything to apple devices
+        for event in device.fetch_events().unwrap() {
+            println!("sending InputEvent::PlayPause");
+            headset_tx.send(InputEvent::PlayPause).ok();
+        }
 
-                if d.name().is_some() && d.name().unwrap().contains("Apple") {
-                    println!("props: {:?}", d.properties());
-                    device_option = Some(d);
-                }
+         */
 
-            }
-
-
+        loop {
             if let Some(device) = &mut device_option {
-                for event in device.fetch_events().unwrap() {
-                    // let _ = evt_tx.send(ev);
+                let mut send_events : Vec<InputEvent> = vec![];
+                match device.fetch_events() {
+                    Ok(events) => {
+                        for event in events {
+                            let send_event_option = match event.destructure() {
+                                EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 1) => {
+                                    // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Press, ev.timestamp()));
+                                    // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(TriggerAction::Toggle));
+                                    // println!("PLAYPAUSE PRESSED: {:?}", ev);
+                                    println!("PLAYPAUSE PRESSED: {:?}", ev);
+                                    Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Press))
+                                    // Some(InputEvent::PlayPause)
+                                }
+                                EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 0) => {
+                                    // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
+                                    // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
+                                    // println!("PLAYPAUSE RELEASED: {:?}", ev);
+                                    println!("PLAYPAUSE RELEASED: {:?}", ev);
+                                    Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Release))
 
-                    let mut trigger_action = false;
-                    let mut event_str = "";
-                    match event.destructure() {
+                                }
+                                EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 1) => {
+                                    println!("VOLUME_UP PRESSED: {:?}", ev);
+
+                                    Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Press))
+
+                                    //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Press, ev.timestamp()));
+                                }
+                                EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 0) => {
+                                    //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Release, ev.timestamp()));
+                                    println!("VOLUME_UP RELEASED: {:?}", ev);
+                                    Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Release))
+
+                                }
+                                EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 1) => {
+                                    //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Press, ev.timestamp()));
+                                    println!("VOLUME_DOWN PRESSED: {:?}", ev);
+                                    Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Press))
+
+                                }
+                                EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 0) => {
+                                    //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Release, ev.timestamp()));
+                                    println!("VOLUME_DOWN RELEASED: {:?}", ev);
+                                    Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Release))
+                                }
+                                _ => {
+                                    None
+                                }
+                            };
+
+                            if let Some(send_event) = send_event_option {
+                                send_events.push(send_event);
+                            }
+
+                        }
+                    }
+                    /*
+                    Err(WouldBlock) => {
+                        // No events available - continue polling
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+
+                     */
+
+
+                    Err(e) => {
+                        /*
+                        // ignore errors for now
+                        if e.kind() == std::io::ErrorKind::WouldBlock {
+                            // headset_tx.send(InputEvent::PlayPause).ok();
+
+                        } else {
+                            eprintln!("Error: {:?}", e);
+                        }
+
+                         */
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+                    },
+                }
+
+                for e in send_events {
+                    headset_tx.send(e).ok();
+                }
+
+                 /*
+                 for event in device.fetch_events().unwrap() {
+                    println!("sending InputEvent::PlayPause");
+                    headset_tx.send(InputEvent::PlayPause).ok();
+                    continue;
+                    let tx_input_event_option = match event.destructure() {
                         EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 1) => {
                             // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Press, ev.timestamp()));
                             // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(TriggerAction::Toggle));
                             // println!("PLAYPAUSE PRESSED: {:?}", ev);
-                            event_str = "PLAYPAUSE (PRESS)  ";
+                            println!("PLAYPAUSE PRESSED: {:?}", ev);
+                            // Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Press))
+                            Some(InputEvent::PlayPause)
                         }
                         EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 0) => {
                             // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
                             // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
                             // println!("PLAYPAUSE RELEASED: {:?}", ev);
-                            event_str = "PLAYPAUSE (RELEASE)";
+                            println!("PLAYPAUSE RELEASED: {:?}", ev);
+                            Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Release))
+
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 1) => {
                             println!("VOLUME_UP PRESSED: {:?}", ev);
+
+                            Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Press))
+
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Press, ev.timestamp()));
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 0) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Release, ev.timestamp()));
                             println!("VOLUME_UP RELEASED: {:?}", ev);
+                            Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Release))
+
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 1) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Press, ev.timestamp()));
                             println!("VOLUME_DOWN PRESSED: {:?}", ev);
+                            Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Press))
+
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 0) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Release, ev.timestamp()));
                             println!("VOLUME_DOWN RELEASED: {:?}", ev);
+                            Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Release))
                         }
                         _ => {
-                            // println!("got a different event: {:?}", event.destructure())
+                            None
+                        }
+                    };
+
+                    if let Some(tx_input_event) = tx_input_event_option {
+                        let send_result = headset_tx.send(tx_input_event);
+                        println!("SEND: {:?}", send_result);
+                    }
+                }
+
+                  */
+            } else {
+                for path_str in &device_paths {
+                    let path = Path::new(path_str);
+                    if !Path::exists(path) {
+                        continue;
+                    }
+                    let device_result = Device::open(path_str);
+                    if let Ok(d) = device_result {
+
+
+                        if self.is_headset_remote(&d) {
+                            // todo better handling
+                            let _ = d.set_nonblocking(true);
+
+                            device_option = Some(d);
+                            /*
+                            let debug_device_result = Device::open(path_str);
+                            if let Ok(d2) = debug_device_result {
+
+                                let to_string = dbg!(d2.to_string());
+                                let name = dbg!(d2.name());
+                                let absinfo = d2.get_absinfo();
+                                let properties = dbg!(d2.properties());
+                                let misc_properties = dbg!(d2.misc_properties());
+                                let supported_events = dbg!(d2.supported_events());
+                                let supported_keys = dbg!(d2.supported_keys());
+                                let supported_sounds = dbg!(d2.supported_sounds());
+                                let x = "";
+                            }
+                             */
+
                         }
                     }
-                    // let evt_tx_clone = evt_tx.clone();
-
-                    // if trigger_action {}
                 }
             }
         }
+    }
+
+    fn is_headset_remote(&self, device: &Device) -> bool {
+        if let Some(supported_keys) = device.supported_keys() {
+            // KEY_VOICECOMMAND seems to be supported by all USB-C to Audio adapters
+            // todo: otherwise it would be possible to add some configurable device name
+            return supported_keys.contains(KeyCode::KEY_VOICECOMMAND);
+        }
+        false
     }
 }

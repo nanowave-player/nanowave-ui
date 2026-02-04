@@ -27,9 +27,11 @@ pub enum PlayerCommand {
     Play(),
     Next(),
     Previous(),
+    Toggle(),
     SeekRelative(i64),
     SeekTo(Duration),
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriggerAction {
@@ -398,6 +400,9 @@ impl Player {
                                 let _ = self.try_seek(Duration::from_millis(new_pos));
                             }
                             PlayerCommand::SeekTo(_) => {},
+                            PlayerCommand::Toggle() => {
+                                self.toggle()
+                            },
                             // _ => {}
                         }
                     }

@@ -6,6 +6,7 @@ use crate::config::Config;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
@@ -24,19 +25,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
-
-    let (headset_evt_tx, headset_evt_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
-
-
+    let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
-                                 media_source_tx.clone(),
                                  media_source_rx,
-                                 player_cmd_tx.clone(),
+                                 player_cmd_tx_shared,
                                  player_cmd_rx,
                                  player_evt_tx.clone(),
-                                 headset_evt_tx.clone(),
-                                 headset_evt_rx
     );
 
     let ui = MainWindow::new()?;

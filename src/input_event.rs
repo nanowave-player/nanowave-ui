@@ -10,13 +10,14 @@ pub enum InputEventButton {
     PlayPause,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputEventAction {
     Press,
     Release,
 }
 
-
 pub enum InputEvent {
-    ButtonEvent(InputEventDevice, InputEventButton, InputEventAction)
+    ButtonEvent(InputEventDevice, InputEventButton, InputEventAction),
+    PlayPause
 }
 

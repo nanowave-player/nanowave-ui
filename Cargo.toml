@@ -24,6 +24,8 @@ image = "0.25.9"
 rodio = "0.21.1"
 cpal = "0.16.0"
 evdev = "0.13.2"
+debounce = "0.2.2"
+
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)
