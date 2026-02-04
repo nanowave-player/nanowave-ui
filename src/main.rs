@@ -1,13 +1,13 @@
 slint::include_modules!();
 
 use crate::background::media_source::{FilterCommand, FindCommand, MediaSourceCommand};
+use crate::background::player::{PlayerCommand, PlayerEvent};
 use crate::config::Config;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use crate::background::player::{PlayerCommand, PlayerEvent};
 
 mod background;
 mod database_wrapper;
@@ -16,6 +16,7 @@ mod migrator;
 mod file_utils;
 mod config;
 mod slint_utils;
+mod input_event;
 
 fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
@@ -24,13 +25,18 @@ fn main() -> Result<(), slint::PlatformError> {
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
 
+    let (headset_evt_tx, headset_evt_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
+
+
+
     start_tokio_background_tasks(Config::new(base_path.to_string()),
                                  media_source_tx.clone(),
                                  media_source_rx,
                                  player_cmd_tx.clone(),
                                  player_cmd_rx,
-                                 player_evt_tx.clone()
-
+                                 player_evt_tx.clone(),
+                                 headset_evt_tx.clone(),
+                                 headset_evt_rx
     );
 
     let ui = MainWindow::new()?;

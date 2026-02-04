@@ -9,9 +9,11 @@ use std::sync::Arc;
 use std::thread;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::file_media_source::FileMediaSource;
+use crate::background::headset_handler::HeadsetHandler;
 use crate::background::media_source::MediaSourceCommand;
 use crate::background::player::{Player, PlayerCommand, PlayerEvent};
 use crate::config::Config;
+use crate::input_event::InputEvent;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -21,6 +23,8 @@ mod database_upsert_item;
 mod file_media_source;
 pub(crate) mod media_source;
 pub(crate) mod player;
+mod input_handler;
+mod headset_handler;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_tx: UnboundedSender<MediaSourceCommand>,
@@ -28,9 +32,20 @@ pub fn start_tokio_background_tasks(config: Config,
                                     player_tx: UnboundedSender<PlayerCommand>,
                                     player_rx: UnboundedReceiver<PlayerCommand>,
                                     player_evt_tx: UnboundedSender<PlayerEvent>,
-                                    ) {
+                                    headset_tx: UnboundedSender<InputEvent>,
+                                    headset_rx: UnboundedReceiver<InputEvent>,
+) {
     thread::spawn(move || {
-        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(&config, media_source_tx, media_source_rx, player_tx, player_rx, player_evt_tx));
+        tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(
+            &config,
+            media_source_tx,
+            media_source_rx,
+            player_tx,
+            player_rx,
+            player_evt_tx,
+            headset_tx,
+            headset_rx
+        ));
     });
 
     /*
@@ -52,7 +67,9 @@ pub async fn background_tasks(config: &Config,
                               media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                               player_tx: UnboundedSender<PlayerCommand>,
                               player_rx: UnboundedReceiver<PlayerCommand>,
-                              player_evt_tx: UnboundedSender<PlayerEvent>
+                              player_evt_tx: UnboundedSender<PlayerEvent>,
+                              headset_tx: UnboundedSender<InputEvent>,
+                              headset_rx: UnboundedReceiver<InputEvent>
 ) {
 
     // let base_path_str = config.base_path.clone();
@@ -113,9 +130,15 @@ pub async fn background_tasks(config: &Config,
 
         let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_rx, player_evt_tx).await;
     });
+    
+    let headset_task = tokio::spawn(async {
+        let device_paths = vec!["/dev/input/event1", "/dev/input/event13"];
+
+        let _ = HeadsetHandler::new().run(device_paths, headset_tx);
+    });
 
 
     let _ = file_scanner_tx.send(FileScannerAction::ScanFiles).await;
 
-    let _ = tokio::join!(file_scanner_task, database_checker_task, metadata_retriever_task, database_updater_task, media_source_task, player_task);
+    let _ = tokio::join!(file_scanner_task, database_checker_task, metadata_retriever_task, database_updater_task, media_source_task, player_task, headset_task);
 }
