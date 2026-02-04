@@ -401,7 +401,8 @@ impl Player {
                             }
                             PlayerCommand::SeekTo(_) => {},
                             PlayerCommand::Toggle() => {
-                                self.toggle()
+                                self.toggle();
+                                self.update_playing_status(&evt_tx).await;
                             },
                             // _ => {}
                         }
