@@ -8,11 +8,13 @@ use rodio::{OutputStream, OutputStreamBuilder, Sink, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
 use crate::background::media_source::MediaSource;
@@ -28,6 +30,9 @@ pub enum PlayerCommand {
     Next(),
     Previous(),
     Toggle(),
+    Rewind(),
+    FastForward(),
+    CancelOngoing(),
     SeekRelative(i64),
     SeekTo(Duration),
 }
@@ -300,6 +305,9 @@ impl Player {
         evt_tx: UnboundedSender<PlayerEvent>,
     ) {
         let mut last_sink_update_attempt = SystemTime::now();
+
+
+        let mut ongoing_option: Arc<Option<JoinHandle<_>>> = Arc::new(None);
         loop {
             // polling in case the audio hardware has not been successfully initialized yet
 
@@ -404,7 +412,29 @@ impl Player {
                                 self.toggle();
                                 self.update_playing_status(&evt_tx).await;
                             },
-                            // _ => {}
+                            PlayerCommand::CancelOngoing() => {
+                                let option = ongoing_option.deref();
+                                if let Some(ongoing) = option {
+                                    ongoing.abort();
+                                    ongoing_option = Arc::new(None);
+                                }
+                            },
+                            PlayerCommand::Rewind() => {
+                                 ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                                    loop {
+                                        println!("rewind");
+                                        tokio::time::sleep(Duration::from_millis(800)).await;
+                                    }
+                                })));
+                            },
+                            PlayerCommand::FastForward() => {
+                                 ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                                    loop {
+                                        println!("fast-forward");
+                                        tokio::time::sleep(Duration::from_millis(800)).await;
+                                    }
+                                })));
+                            }
                         }
                     }
 

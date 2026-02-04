@@ -31,6 +31,8 @@ impl InputHandler {
         let hold_clone = hold.clone();
 
 
+        let player_tx_cancel_clone = player_tx.clone();
+
         let debouncer = EventDebouncer::new(delay, move |str: &str| {
             let mut clicks_lock = clicks_clone.lock().unwrap();
             let hold_lock = hold_clone.lock().unwrap();
@@ -40,13 +42,31 @@ impl InputHandler {
 
             let player_tx_clone = player_tx.clone();
 
+            player_tx_clone.send(PlayerCommand::CancelOngoing()).ok();
+
             if *hold_lock {
+                match *clicks_lock {
+                    1 => {
+                        player_tx_clone.send(PlayerCommand::Rewind()).ok();
+                    },
+                    2 => {
+                        player_tx_clone.send(PlayerCommand::FastForward()).ok();
+                    }
+                    _ => {}
+                }
+
 
             } else {
                 match *clicks_lock {
                     1 => {
                         player_tx_clone.send(PlayerCommand::Toggle()).ok();
                     },
+                    2 => {
+                        player_tx_clone.send(PlayerCommand::Next()).ok();
+                    },
+                    3 => {
+                        player_tx_clone.send(PlayerCommand::Previous()).ok();
+                    }
                     _ => {}
                 }
             }
@@ -58,6 +78,11 @@ impl InputHandler {
             drop(hold_lock);
         });
 
+
+        let cancel_cb = || {
+            let player_tx_clone = player_tx_cancel_clone.clone();
+            player_tx_clone.send(PlayerCommand::CancelOngoing()).ok();
+        };
 
         loop {
 
@@ -88,6 +113,8 @@ impl InputHandler {
                         drop(hold_lock);
                         if should_execute {
                             debouncer.put("");
+                        } else {
+                            cancel_cb();
                         }
                     }
                     _ => {}
