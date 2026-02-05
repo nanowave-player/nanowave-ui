@@ -37,7 +37,7 @@ pub enum PlayerCommand {
     SeekTo(Duration),
 }
 
-
+/*
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriggerAction {
     Toggle,
@@ -47,6 +47,7 @@ pub enum TriggerAction {
     StepForward,
     StopOngoing,
 }
+*/
 
 #[derive(Debug)]
 pub enum PlayerEvent {
@@ -301,6 +302,7 @@ impl Player {
 
     pub async fn run(
         &mut self,
+        cmd_tx: Arc<UnboundedSender<PlayerCommand>>,
         mut cmd_rx: UnboundedReceiver<PlayerCommand>,
         evt_tx: UnboundedSender<PlayerEvent>,
     ) {
@@ -336,6 +338,10 @@ impl Player {
 
                     Some(cmd) = cmd_rx.recv() => {
                         println!("============== cmd received ==============");
+
+                        let rewind_tx = cmd_tx.clone();
+                        let fast_forward_tx = cmd_tx.clone();
+
                         match cmd {
                             PlayerCommand::Update(s) => {
                                 let _ = self.play_media(s.clone()).await;
@@ -404,8 +410,9 @@ impl Player {
                                 }
                             }
                             PlayerCommand::SeekRelative(millis) => {
-                                let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
-                                let _ = self.try_seek(Duration::from_millis(new_pos));
+                                // let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
+                                // let _ = self.try_seek(Duration::from_millis(new_pos));
+                                self.seek_relative(sink, millis);
                             }
                             PlayerCommand::SeekTo(_) => {},
                             PlayerCommand::Toggle() => {
@@ -423,6 +430,8 @@ impl Player {
                                  ongoing_option = Arc::new(Some(tokio::spawn(async move {
                                     loop {
                                         println!("rewind");
+                                        // self.seek_relative(sink, -15000);
+                                        rewind_tx.send(PlayerCommand::SeekRelative(-15000)).unwrap();
                                         tokio::time::sleep(Duration::from_millis(800)).await;
                                     }
                                 })));
@@ -431,6 +440,7 @@ impl Player {
                                  ongoing_option = Arc::new(Some(tokio::spawn(async move {
                                     loop {
                                         println!("fast-forward");
+                                        rewind_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
                                         tokio::time::sleep(Duration::from_millis(800)).await;
                                     }
                                 })));
@@ -474,6 +484,11 @@ impl Player {
         }
     }
     */
+    fn seek_relative(&self, sink: &Sink, millis: i64) {
+        let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
+        let _ = self.try_seek(Duration::from_millis(new_pos));
+    }
+
     async fn update_position(&self, evt_tx: &mpsc::UnboundedSender<PlayerEvent>, pos: Duration) {
         if let Some(item) = self.item.clone() {
             let _ = evt_tx.send(PlayerEvent::Position(item.id.to_string(), pos));

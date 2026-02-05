@@ -3,6 +3,8 @@ pub enum InputEventDevice {
     Gpio
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputEventButton {
     Power,
     VolumeIncrease,
@@ -18,6 +20,5 @@ pub enum InputEventAction {
 
 pub enum InputEvent {
     ButtonEvent(InputEventDevice, InputEventButton, InputEventAction),
-    PlayPause
 }
 

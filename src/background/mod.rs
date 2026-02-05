@@ -27,6 +27,7 @@ pub(crate) mod media_source;
 pub(crate) mod player;
 mod input_handler;
 mod headset_handler;
+mod gpio_handler;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
@@ -108,12 +109,13 @@ pub async fn background_tasks(config: &Config,
     let media_source_task = tokio::spawn(async {
         let _ = media_source.run(media_source_rx).await;
     });
-
+    
+    let player_tx_player = player_tx.clone();
     let player_task = tokio::spawn(async {
         let preferred_device = "USB-C to 3.5mm Headphone Jack A".to_string();
         let fallback_device = "pipewire".to_string();
 
-        let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_rx, player_evt_tx).await;
+        let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_tx_player, player_rx, player_evt_tx).await;
     });
 
     let headset_task = tokio::spawn(async {
@@ -122,6 +124,7 @@ pub async fn background_tasks(config: &Config,
     });
 
 
+    let player_tx_input_handler = player_tx.clone();
     let input_handler_task = tokio::spawn(async {
         let _ = InputHandler::new().run(headset_rx, player_tx).await;
     });

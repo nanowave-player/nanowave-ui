@@ -51,11 +51,12 @@ impl InputHandler {
                     },
                     2 => {
                         player_tx_clone.send(PlayerCommand::FastForward()).ok();
+                    },
+                    3 => {
+                        player_tx_clone.send(PlayerCommand::Rewind()).ok();
                     }
                     _ => {}
                 }
-
-
             } else {
                 match *clicks_lock {
                     1 => {
