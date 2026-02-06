@@ -25,16 +25,11 @@ rodio = "0.21.1"
 cpal = "0.16.0"
 evdev = "0.13.2"
 debounce = "0.2.2"
-sysfs_gpio = "0.6.2"
-
-
+sysfs_gpio = { version = "0.6.2", features = ["async-tokio"] }
+futures = "0.3.31"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)
 
-
-
 [build-dependencies]
 slint-build = "1.15.0"
-
-

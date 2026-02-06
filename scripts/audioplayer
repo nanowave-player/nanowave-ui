@@ -1,0 +1,16 @@
+#!/bin/sh
+# 22: vol-
+devmem 0x03001050 b 0x03
+echo 502 > /sys/class/gpio/export
+# 23: play
+devmem 0x0300105C b 0x03
+echo 503 > /sys/class/gpio/export
+# 24: power
+devmem 0x03001060 b 0x03
+echo 504 > /sys/class/gpio/export
+# 25: vol+
+devmem 0x03001054 b 0x03
+echo 505 > /sys/class/gpio/export
+
+cd /root/ && ./nanowave --base-directory="./media"
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+BIN_NAME="nanowave"
+PLAYER_PID="$(ps aux | grep "$BIN_NAME" | grep -v grep | sed -e 's/^[[:space:]]*//' | cut -d '  ' -f 1)"
+kill -HUP "$PLAYER_PID"
+

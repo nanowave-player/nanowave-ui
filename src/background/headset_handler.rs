@@ -3,7 +3,9 @@ use crate::input_event::InputEventDevice::Headset;
 use crate::input_event::{InputEvent, InputEventAction};
 use evdev::{Device, EventSummary, KeyCode};
 use std::path::Path;
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+
 
 pub struct HeadsetHandler {}
 
@@ -12,7 +14,7 @@ impl HeadsetHandler {
         Self {}
     }
 
-    pub async fn run(&mut self, device_paths: Vec<&str>, headset_tx: UnboundedSender<InputEvent>) {
+    pub async fn run(&mut self, device_paths: Vec<&str>, headset_tx: Arc<UnboundedSender<InputEvent>>) {
         let mut device_option: Option<Device> = None;
 
         /*

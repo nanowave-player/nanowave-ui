@@ -28,13 +28,19 @@ impl FileScanner {
 
         let self_root = PathBuf::from(self.config.base_path.clone());
         
+        
         while let Some(action) = self.rx.recv().await {
+            println!("filescanner: received action");
             match action {
                 FileScannerAction::ScanFiles => {
+
                     let root = self_root.clone();
                     for entry in walkdir::WalkDir::new(root) {
+                        println!("filescanner: walk entry");
+
                         let entry = entry?;
                         if entry.file_type().is_file() && filter(entry.path()) {
+                            println!("filescanner: send entry");
                             if let Err(_) = self.tx.send(entry.path().to_path_buf()).await {
                                 break; // downstream closed
                             }

@@ -1,5 +1,4 @@
 #!/bin/sh
 
-scp ./target/riscv64gc-unknown-linux-musl/release/rust-slint-riscv64-musl-demo lichee2:/root/
-
-
+scp ./target/riscv64gc-unknown-linux-musl/release/nanowave-ui lichee2:/root/nanowave
+scp ./scripts/* lichee2:/root/
