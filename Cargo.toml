@@ -27,6 +27,7 @@ evdev = "0.13.2"
 debounce = "0.2.2"
 sysfs_gpio = { version = "0.6.2", features = ["async-tokio"] }
 futures = "0.3.31"
+rand = "0.8.5"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)

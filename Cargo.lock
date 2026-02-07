@@ -3461,6 +3461,7 @@ dependencies = [
  "lofty",
  "media_source",
  "mp4ameta",
+ "rand 0.8.5",
  "rodio",
  "sea-orm",
  "sea-orm-migration",

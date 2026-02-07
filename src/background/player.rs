@@ -489,7 +489,9 @@ impl Player {
         let _ = self.try_seek(Duration::from_millis(new_pos));
     }
 
-    async fn update_position(&self, evt_tx: &mpsc::UnboundedSender<PlayerEvent>, pos: Duration) {
+    async fn update_position(&self, evt_tx: &UnboundedSender<PlayerEvent>, pos: Duration) {
+
+
         if let Some(item) = self.item.clone() {
             let _ = evt_tx.send(PlayerEvent::Position(item.id.to_string(), pos));
         }

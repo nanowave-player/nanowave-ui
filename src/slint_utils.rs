@@ -101,7 +101,7 @@ pub fn rust_items_to_slint_model(
                     empty_cover_result()
                 };
 
-                let mut slint_chapters_vec = VecModel::default();
+                let slint_chapters_vec = VecModel::default();
                 for chapter in &rust_item.metadata.chapters {
                     let start: i64 = chapter
                         .start

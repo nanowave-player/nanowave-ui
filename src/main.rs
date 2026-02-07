@@ -7,8 +7,10 @@ use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use rand::distributions::{Alphanumeric, DistString};
 use tokio::sync::mpsc;
+use crate::navigation_event::NavigationEvent;
 
 mod background;
 mod database_wrapper;
@@ -18,29 +20,82 @@ mod file_utils;
 mod config;
 mod slint_utils;
 mod input_event;
+mod navigation_event;
+
+fn player_session_id() -> String {
+    /*
+// random string
+    let start = SystemTime::now();
+let since_the_epoch = start
+.duration_since(UNIX_EPOCH)
+.expect("time should go forward");
+println!("{:?}", since_the_epoch);
+let in_ms = since_the_epoch.as_millis();
+let string = Alphanumeric.sample_string(&mut rand::rng(), 16);
+println!("{string}");
+ */
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("time should go forward");
+    let in_ms = since_the_epoch.as_millis();
+    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+
+    let id = format!("{}.{}", in_ms, string);
+
+    id
+
+}
 
 fn main() -> Result<(), slint::PlatformError> {
+    let fummel = player_session_id();
+
+    println!("fummel: {}" ,fummel);
+
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
+    let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
+
+
     let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
+
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
                                  media_source_rx,
                                  player_cmd_tx_shared,
                                  player_cmd_rx,
                                  player_evt_tx.clone(),
+                                 navigation_evt_tx.clone()
     );
 
+
+
     let ui = MainWindow::new()?;
+    let navigation = ui.global::<SlintNavigation>();
+    let navigation_for_events = Arc::new(ui.global::<SlintNavigation>());
+
+    /*
+    |id: String| {
+                                     let route: ModelRc<SharedString> = ModelRc::from(["details".into(), id.into()]);
+                                     // navigation_clone.invoke_goto(route);
+                                 }
+     */
+
+
+
+
+
     let ui_weak = ui.as_weak();
 
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
 
-    let navigation = ui.global::<SlintNavigation>();
+
+
+
     let ui_nav = ui_weak.clone();
     navigation.on_goto(move |value| {
         let ui = ui_nav.upgrade().unwrap();
@@ -226,9 +281,39 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
+    let ui_handle_navigation = ui.as_weak();
+
+    slint::spawn_local(async move {
+        while let Some(event) = navigation_evt_rx.recv().await {
+            if let Some(ui) = ui_handle_navigation.upgrade() {
+                let inner = ui.global::<SlintNavigation>();
+
+                match event {
+                    NavigationEvent::NavigateTo(path) => {
+                        // let route: ModelRc<SharedString> = ModelRc::from(path.into());
+
+                        // let shared_strings: Vec<SharedString> = path.into_iter()
+                        //     .map(|s| SharedString::from(s)) // Convert String into SharedString
+                        //    .collect();
+
+                        // let a : [String] = path.into();
+                        // let array =  Array::from(path);
+
+                        // Wrap the Vec<SharedString> into ModelRc
+
+                        let my_vec : Vec<SharedString> = path.into_iter().map(Into::into).collect();
+                        let route = ModelRc::new(VecModel::from(my_vec));
+                        inner.invoke_goto(route);
+                    }
+                }
+
+            }
+        }
+    })
+    .unwrap();
+
 
     let ui_handle_player = ui.as_weak();
-
 
     slint::spawn_local(async move {
 

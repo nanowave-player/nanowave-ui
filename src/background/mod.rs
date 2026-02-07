@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::gpio_handler::GpioHandler;
 use crate::background::gpio_pin::GpioPin;
-
+use crate::navigation_event::NavigationEvent;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -32,12 +32,14 @@ mod input_handler;
 mod headset_handler;
 mod gpio_handler;
 mod gpio_pin;
+mod playback_history;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                                     player_tx: Arc<UnboundedSender<PlayerCommand>>,
                                     player_rx: UnboundedReceiver<PlayerCommand>,
                                     player_evt_tx: UnboundedSender<PlayerEvent>,
+                                    navigation_evt_tx: UnboundedSender<NavigationEvent>,
 ) {
     println!("=== start_tokio_background_tasks");
     thread::spawn(move || {
@@ -47,6 +49,7 @@ pub fn start_tokio_background_tasks(config: Config,
             player_tx,
             player_rx,
             player_evt_tx,
+            navigation_evt_tx,
         ));
     });
 
@@ -69,10 +72,14 @@ pub async fn background_tasks(config: &Config,
                               player_tx: Arc<UnboundedSender<PlayerCommand>>,
                               player_rx: UnboundedReceiver<PlayerCommand>,
                               player_evt_tx: UnboundedSender<PlayerEvent>,
+                              navigation_evt_tx: UnboundedSender<NavigationEvent>,
+
 ) {
 
     println!("=== background_tasks");
 
+    // restore route testing todo remove
+    let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), "2".into()]));
 
     let db_base_path = config.base_path.clone();
     let db_result = DatabaseWrapper::new(db_base_path).connect().await;
@@ -90,6 +97,10 @@ pub async fn background_tasks(config: &Config,
     let (db_checker_tx, db_checker_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (meta_retriever_tx, meta_retriever_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (input_event_tx, input_event_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
+
+
+
+
 
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());

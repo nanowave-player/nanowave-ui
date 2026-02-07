@@ -17,6 +17,20 @@ echo 504 > /sys/class/gpio/export
 # A25 -> 505: vol+
 devmem 0x03001054 b 0x03
 echo 505 > /sys/class/gpio/export
+
+
+Button Layout:
+
+----------------
+ USB-C Power
+
+  o -> 502 / A22
+  o -> not working ?? A25
+  o -> not working ?? A23
+  o -> 504 / A24
+
+ USB-C Audio
+ ------------
  */
 
 
