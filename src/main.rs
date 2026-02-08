@@ -23,17 +23,6 @@ mod input_event;
 mod navigation_event;
 
 fn player_session_id() -> String {
-    /*
-// random string
-    let start = SystemTime::now();
-let since_the_epoch = start
-.duration_since(UNIX_EPOCH)
-.expect("time should go forward");
-println!("{:?}", since_the_epoch);
-let in_ms = since_the_epoch.as_millis();
-let string = Alphanumeric.sample_string(&mut rand::rng(), 16);
-println!("{string}");
- */
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
@@ -42,25 +31,20 @@ println!("{string}");
     let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
 
     let id = format!("{}.{}", in_ms, string);
-
     id
-
 }
 
 fn main() -> Result<(), slint::PlatformError> {
-    let fummel = player_session_id();
-
-    println!("fummel: {}" ,fummel);
-
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
-
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
 
 
     let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
+    let media_source_filter_tx = media_source_tx.clone();
+    let media_source_find_tx = media_source_tx.clone();
 
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
@@ -74,31 +58,19 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     let ui = MainWindow::new()?;
-    let navigation = ui.global::<SlintNavigation>();
-    let navigation_for_events = Arc::new(ui.global::<SlintNavigation>());
-
-    /*
-    |id: String| {
-                                     let route: ModelRc<SharedString> = ModelRc::from(["details".into(), id.into()]);
-                                     // navigation_clone.invoke_goto(route);
-                                 }
-     */
-
-
-
-
-
     let ui_weak = ui.as_weak();
+
+    let ui_slint_navigation_goto = ui_weak.clone();
+    let ui_slint_navigation_back = ui_weak.clone();
+    let ui_slint_navigation_forward = ui_weak.clone();
 
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
 
 
-
-
-    let ui_nav = ui_weak.clone();
+    let navigation = ui.global::<SlintNavigation>();
     navigation.on_goto(move |value| {
-        let ui = ui_nav.upgrade().unwrap();
+        let ui = ui_slint_navigation_goto.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
         nav.set_route(value);
         let history_item = nav.get_route();
@@ -123,9 +95,8 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(next_index);
     });
 
-    let ui_back = ui_weak.clone();
     navigation.on_back(move || {
-        let ui = ui_back.upgrade().unwrap();
+        let ui = ui_slint_navigation_back.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
         let current_index = nav.get_history_index();
         let vec_index = current_index as usize;
@@ -137,9 +108,8 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(current_index - 1);
     });
 
-    let ui_forward = ui_weak.clone();
     navigation.on_forward(move || {
-        let ui = ui_forward.upgrade().unwrap();
+        let ui = ui_slint_navigation_forward.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
         let current_index = nav.get_history_index();
         let vec_index = current_index as usize;
@@ -153,10 +123,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     let slint_media_source = ui.global::<SlintMediaSource>();
-
-    let filter_tx = media_source_tx.clone();
     slint_media_source.on_filter({
-
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let ui_weak_find = ui.as_weak().clone();
@@ -181,11 +148,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
-            filter_tx.send(cmd).ok();
+            media_source_filter_tx.send(cmd).ok();
         }
     });
 
-    let find_tx = media_source_tx.clone();
     slint_media_source.on_find({
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
@@ -214,7 +180,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
-            find_tx.send(cmd).ok();
+            media_source_find_tx.send(cmd).ok();
         }
     });
 
@@ -282,25 +248,12 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let ui_handle_navigation = ui.as_weak();
-
     slint::spawn_local(async move {
         while let Some(event) = navigation_evt_rx.recv().await {
             if let Some(ui) = ui_handle_navigation.upgrade() {
                 let inner = ui.global::<SlintNavigation>();
-
                 match event {
                     NavigationEvent::NavigateTo(path) => {
-                        // let route: ModelRc<SharedString> = ModelRc::from(path.into());
-
-                        // let shared_strings: Vec<SharedString> = path.into_iter()
-                        //     .map(|s| SharedString::from(s)) // Convert String into SharedString
-                        //    .collect();
-
-                        // let a : [String] = path.into();
-                        // let array =  Array::from(path);
-
-                        // Wrap the Vec<SharedString> into ModelRc
-
                         let my_vec : Vec<SharedString> = path.into_iter().map(Into::into).collect();
                         let route = ModelRc::new(VecModel::from(my_vec));
                         inner.invoke_goto(route);
@@ -309,12 +262,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
             }
         }
-    })
-    .unwrap();
-
+    }).unwrap();
 
     let ui_handle_player = ui.as_weak();
-
     slint::spawn_local(async move {
 
         while let Some(event) = player_evt_rx.recv().await {
@@ -339,9 +289,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 break;
             }
         }
-    })
-        .unwrap();
-
+    }).unwrap();
 
     ui.run()
 }

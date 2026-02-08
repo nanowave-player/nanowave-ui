@@ -1,3 +1,4 @@
+use chrono::Timelike;
 use crate::background::database_existence_checker::DatabaseExistenceChecker;
 use crate::background::database_updater::DatabaseUpdater;
 use crate::background::database_upsert_item::DatabaseUpsertItem;
@@ -14,10 +15,13 @@ use crate::input_event;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
+use chrono::NaiveTime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::gpio_handler::GpioHandler;
 use crate::background::gpio_pin::GpioPin;
+// use crate::background::file_media_source_playback_history::PlaybackHistory;
 use crate::navigation_event::NavigationEvent;
 
 mod file_scanner;
@@ -32,7 +36,7 @@ mod input_handler;
 mod headset_handler;
 mod gpio_handler;
 mod gpio_pin;
-mod playback_history;
+mod file_media_source_playback_history;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
@@ -78,8 +82,6 @@ pub async fn background_tasks(config: &Config,
 
     println!("=== background_tasks");
 
-    // restore route testing todo remove
-    let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), "2".into()]));
 
     let db_base_path = config.base_path.clone();
     let db_result = DatabaseWrapper::new(db_base_path).connect().await;
@@ -91,6 +93,7 @@ pub async fn background_tasks(config: &Config,
     let db = db_result.unwrap();
     let db_database_checker = db.clone();
     let db_media_source = db.clone();
+    let db_playback_history = db.clone();
 
     let (file_scanner_tx, file_scanner_rx) = tokio::sync::mpsc::channel::<FileScannerAction>(100);
     let (file_tx, file_rx) = tokio::sync::mpsc::channel::<PathBuf>(100);
@@ -98,6 +101,11 @@ pub async fn background_tasks(config: &Config,
     let (meta_retriever_tx, meta_retriever_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (input_event_tx, input_event_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
 
+
+
+
+    // restore route testing todo remove
+    //
 
 
 
@@ -172,7 +180,32 @@ pub async fn background_tasks(config: &Config,
 
     println!("=== file_scanner_tx.send");
     let _ = file_scanner_tx.send(FileScannerAction::ScanFiles).await;
+
+    // todo:
+    // - this probably should be abstracted in the media_source and not be tightly coupled to the sqlite database
+    // - approach:
+    //   - media_source.history_query(query:String) -> Vec<MediaSourceHistoryItem>
+    //   - media_source.history_update(item: MediaSourceItem, position: Duration)
+    //   - query is the same as in media_source.filter(query: String) and can be used to limit
+    //   - idea is to use a lisp-like syntax: (limit (where (eq id "100") 0 10))
+    // let playback_history = PlaybackHistory::new(db_playback_history);
+    // let last_played_item_model_option = playback_history.load_last_history_item().await;
+
+    let player_tx_history = player_tx.clone();
+
+    /*
+    if let Some(last_played_item_model) = last_played_item_model_option {
+        let item = last_played_item_model.item;
+        let last_played_id = item.unwrap().id.to_string();
+        // todo: https://docs.rs/sea-orm/latest/sea_orm/entity/prelude/struct.Time.html
+        let last_played_pos = naive_time_to_duration(last_played_item_model.position);
+        let _ = player_tx_history.send(PlayerCommand::LoadMedia(last_played_id.clone(), last_played_pos));
+        let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), last_played_id.clone()]));
+    }
     
+     */
+
+
     let _ = tokio::join!(file_scanner_task,
         database_checker_task,
         metadata_retriever_task,
@@ -184,3 +217,11 @@ pub async fn background_tasks(config: &Config,
         input_handler_task
     );
 }
+
+fn naive_time_to_duration(naive_time: NaiveTime) -> Duration {
+    let seconds_since_midnight = naive_time.num_seconds_from_midnight();
+    let nanoseconds = naive_time.nanosecond();
+    Duration::new(seconds_since_midnight.into(), nanoseconds)
+}
+
+

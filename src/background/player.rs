@@ -24,6 +24,7 @@ pub enum PlayerCommand {
     Update(String),
     PlayTest(),
     PlayMedia(String),
+    LoadMedia(String, Duration),
     Pause(),
     Stop(),
     Play(),
@@ -102,8 +103,6 @@ impl Player {
         Duration::from_secs(3)
     }
 
-    //                     let match_string = "USB-C to 3.5mm Headphone Jack A";
-    //                     let match_string2 = "pipewire";
     fn create_device_output_builder(
         preferred_name: String,
         fallback_name: String,
@@ -181,33 +180,46 @@ impl Player {
      */
 
     async fn play_media(&mut self, id: String) -> io::Result<()> {
+        if self.load_media(id, Duration::from_secs(0)).await {
+            self.toggle();
+        }
+        Ok(())
+    }
+
+    async fn load_media(&mut self, id: String, position: Duration) -> bool {
         let self_item = self.item.clone();
 
         if let Some(i) = self_item
             && id == i.id
         {
-            self.toggle();
-            return Ok(());
+            return true;
         }
 
-
-
+        let zero_duration = Duration::from_secs(0);
 
         self.item = self.media_source.find(&id).await;
         if self.item.is_none() {
-            return Ok(());
+            return false;
         }
+
         let self_item = self.item.clone();
         let item = self_item.unwrap();
         let path = Path::new(item.location.as_str());
-        let file = File::open(path)?;
+        let file_result = File::open(path);
 
-        if let Some(sink) = &self.sink {
-            sink.clear();
-            sink.append(rodio::Decoder::try_from(file).unwrap());
-            sink.play();
+        if let Ok(file) = file_result {
+            let decoder_result = rodio::Decoder::try_from(file);
+            if let Some(sink) = &self.sink && let Ok(decoder) = decoder_result{
+                sink.clear();
+                sink.append(decoder);
+                if position > zero_duration {
+                    let _ = sink.try_seek(position);
+                }
+                return true;
+            }
         }
-        Ok(())
+
+        false
     }
 
     fn toggle(&self) {
@@ -363,6 +375,10 @@ impl Player {
                             }
                             PlayerCommand::PlayMedia(s) => {
                                 let _ = self.play_media(s).await;
+                                self.update_playing_status(&evt_tx).await;
+                            }
+                            PlayerCommand::LoadMedia(media_item_id, position) => {
+                                let _ = self.load_media(media_item_id, position).await;
                                 self.update_playing_status(&evt_tx).await;
                             }
                             PlayerCommand::Play() => {
