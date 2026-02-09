@@ -22,18 +22,6 @@ mod slint_utils;
 mod input_event;
 mod navigation_event;
 
-fn player_session_id() -> String {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("time should go forward");
-    let in_ms = since_the_epoch.as_millis();
-    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-
-    let id = format!("{}.{}", in_ms, string);
-    id
-}
-
 fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();

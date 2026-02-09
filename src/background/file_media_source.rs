@@ -1,26 +1,24 @@
-use chrono::{Timelike, Utc};
-use std::time::Duration;
-use chrono::NaiveTime;
-use crate::background::media_source::{MediaSource, MediaSourceCommand, MediaSourceHistoryItem};
+use crate::background::file_media_source_playback_history::FileMediaSourcePlaybackHistory;
+use crate::background::media_source::{MediaSource, MediaSourceCommand, MediaSourceHistoryItem, SessionKey};
 use crate::config::Config;
+use crate::entity::item::ModelEx;
 use crate::entity::items_json_metadata::JsonTagField;
 use crate::entity::items_metadata::TagField;
 use crate::entity::{item, items_json_metadata, items_metadata, items_progress_history};
+use chrono::NaiveTime;
+use chrono::Timelike;
 use media_source::media_source_chapter::MediaSourceChapter;
 use media_source::media_source_image_codec::MediaSourceImageCodec;
 use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_metadata::MediaSourceMetadata;
 use media_source::media_source_picture::MediaSourcePicture;
-use sea_orm::compound::HasMany;
 use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::sea_query::prelude::serde_json;
-use sea_orm::{ColumnTrait, QueryOrder};
 use sea_orm::DatabaseConnection;
 use sea_orm::QueryFilter;
+use sea_orm::ColumnTrait;
+use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
-use crate::background::file_media_source_playback_history::FileMediaSourcePlaybackHistory;
-use crate::entity;
-use crate::entity::item::{ActiveModelEx, ModelEx};
 
 #[derive(Clone)]
 pub struct FileMediaSource {
@@ -76,7 +74,11 @@ impl FileMediaSource {
         // format!("{}/{}", self.base_path.clone().trim_end_matches('/'), i.location.trim_start_matches('/').to_string()),
         format!("{}/{}", self.config.base_path.trim_end_matches('/'), location.trim_start_matches('/').to_string())
     }
-    pub fn map_db_model_to_media_item(&self, i: &item::ModelEx, metadata_option: Option<&HasMany<items_metadata::Entity>>, json_option: Option<&HasMany<items_json_metadata::Entity>>) -> MediaSourceItem {
+    pub fn map_db_model_to_media_item(&self, i: &item::ModelEx) -> MediaSourceItem {
+
+
+
+
         let cache_path = self.config.cache_path.clone();
         // let mut base_path = self.config.base_path.clone();
         let mut title : String = String::from("");
@@ -99,6 +101,9 @@ impl FileMediaSource {
             }
         }
 
+        // , metadata_option: Option<&HasMany<items_metadata::Entity>>, json_option: Option<&HasMany<items_json_metadata::Entity>>
+        let metadata_option = Some(&i.metadata);
+
         if let Some(metadata) = metadata_option {
             for tag in metadata {
                 match tag.tag_field {
@@ -115,7 +120,7 @@ impl FileMediaSource {
 
         let mut chapters: Vec<MediaSourceChapter> = Vec::new();
 
-        if let Some(json) = json_option {
+        if let Some(json) = Some(&i.json) {
             for json_tag in json {
                 match json_tag.tag_field {
                     JsonTagField::Chapters => {
@@ -190,7 +195,7 @@ impl MediaSource for FileMediaSource {
 
         let items = items.unwrap();
         let result: Vec<MediaSourceItem> = items.iter().map(|i| {
-            self.map_db_model_to_media_item(i, Some(&i.metadata), Some(&i.json))
+            self.map_db_model_to_media_item(i)
         }).collect();
 
         result
@@ -199,27 +204,44 @@ impl MediaSource for FileMediaSource {
     async fn find(&self, id: &str) -> Option<MediaSourceItem> {
         let item = self.find_item(id).await;
         if let Some(i) = item {
-            return Some(self.map_db_model_to_media_item(&i, Some(&i.metadata), Some(&i.json)));
+            return Some(self.map_db_model_to_media_item(&i));
         }
         None
     }
 
-
+    async fn history_latest(&self) -> Option<MediaSourceHistoryItem> {
+        let latest_option = self.playback_history.find_latest("").await;
+        if let Some(model) = latest_option &&
+            let Ok(session_key) = SessionKey::parse_string(model.session_key.as_str()) {
+            let item_model = model.item.unwrap();
+            let media_source_item = self.map_db_model_to_media_item(&item_model);
+            let hist_item = MediaSourceHistoryItem::new(media_source_item, session_key, naive_time_to_duration(model.position), model.date_modified.into());
+            return Some(hist_item);
+        }
+        None
+    }
 
     async fn history_filter(&self, query: &str) -> Vec<MediaSourceHistoryItem> {
-
-        let history_items = self.playback_history.filter(query).await;
         let mut filtered_items: Vec<MediaSourceHistoryItem> = vec![];
+
+        let history_items: Vec<items_progress_history::ModelEx> = self.playback_history.filter(query).await;
+
         for history_item in history_items {
+
+            // HasOne relationship
             let model = history_item.item.unwrap();
-            let item = MediaSourceHistoryItem {
-                item: self.map_db_model_to_media_item(&model, Some(&model.metadata), Some(&model.json)),
-                session_key: history_item.session_key,
-                position: naive_time_to_duration(history_item.position),
-                date_modified: history_item.date_modified.into(),
-            };
-            filtered_items.push(item);
+
+            if let Ok(session_key) = SessionKey::parse_string(history_item.session_key.as_str())  {
+                let item = MediaSourceHistoryItem {
+                    item: self.map_db_model_to_media_item(&model),
+                    session_key,
+                    position: naive_time_to_duration(history_item.position),
+                    date_modified: history_item.date_modified.into(),
+                };
+                filtered_items.push(item);
+            }
         }
+
         filtered_items
 
         /*
@@ -248,12 +270,9 @@ impl MediaSource for FileMediaSource {
          */
     }
 
-    async fn history_update(&self, media_item_id: &str, random_session_key: &str, new_position: Duration) -> bool {
-        let item_option = self.find_item(&media_item_id).await;
-        if let Some(item) = item_option {
-            return self.playback_history.update(ActiveModelEx::from(item), random_session_key, new_position).await;
-        }
-        false
+    async fn history_update(&self, history_item: MediaSourceHistoryItem) -> bool {
+        self.playback_history.update(history_item).await
+
         /*
         let db = self.db.clone();
 

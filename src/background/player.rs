@@ -17,14 +17,14 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-use crate::background::media_source::MediaSource;
+use crate::background::media_source::{MediaSource, MediaSourceHistoryItem, SessionKey};
 
 #[derive(Debug)]
 pub enum PlayerCommand {
     Update(String),
     PlayTest(),
     PlayMedia(String),
-    LoadMedia(String, Duration),
+    RestoreLastSession(MediaSourceHistoryItem),
     Pause(),
     Stop(),
     Play(),
@@ -37,18 +37,6 @@ pub enum PlayerCommand {
     SeekRelative(i64),
     SeekTo(Duration),
 }
-
-/*
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TriggerAction {
-    Toggle,
-    Next,
-    Previous,
-    StepBack,
-    StepForward,
-    StopOngoing,
-}
-*/
 
 #[derive(Debug)]
 pub enum PlayerEvent {
@@ -66,6 +54,7 @@ pub struct Player {
     stream: Option<OutputStream>, // when removed, the samples do not play
     sink: Option<Sink>,
     item: Option<MediaSourceItem>,
+    session_key: SessionKey,
 }
 
 impl Player {
@@ -83,6 +72,7 @@ impl Player {
             stream: None,
             sink: None,
             item: None,
+            session_key: SessionKey::new()
         }
     }
 
@@ -322,6 +312,9 @@ impl Player {
 
 
         let mut ongoing_option: Arc<Option<JoinHandle<_>>> = Arc::new(None);
+
+        let mut last_history_update = Arc::new(SystemTime::now());
+
         loop {
             // polling in case the audio hardware has not been successfully initialized yet
 
@@ -333,6 +326,13 @@ impl Player {
             }
 
             if let Some(sink) = &self.sink {
+                if self.session_key.is_expired() {
+                    self.session_key = SessionKey::new();
+                } else if !sink.is_paused(){
+                    self.session_key.extend_validity();
+                }
+
+
                 tokio::select! {
 
                     // this part makes the UI crash
@@ -353,7 +353,6 @@ impl Player {
 
                         let rewind_tx = cmd_tx.clone();
                         let fast_forward_tx = cmd_tx.clone();
-
                         match cmd {
                             PlayerCommand::Update(s) => {
                                 let _ = self.play_media(s.clone()).await;
@@ -377,7 +376,11 @@ impl Player {
                                 let _ = self.play_media(s).await;
                                 self.update_playing_status(&evt_tx).await;
                             }
-                            PlayerCommand::LoadMedia(media_item_id, position) => {
+                            PlayerCommand::RestoreLastSession(media_source_history_item) => {
+                                let media_item_id = media_source_history_item.item.id.clone();
+                                let position = media_source_history_item.position;
+                                self.session_key = media_source_history_item.session_key.clone();
+
                                 let _ = self.load_media(media_item_id, position).await;
                                 self.update_playing_status(&evt_tx).await;
                             }
@@ -456,7 +459,7 @@ impl Player {
                                  ongoing_option = Arc::new(Some(tokio::spawn(async move {
                                     loop {
                                         println!("fast-forward");
-                                        rewind_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
+                                        fast_forward_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
                                         tokio::time::sleep(Duration::from_millis(800)).await;
                                     }
                                 })));
@@ -465,7 +468,14 @@ impl Player {
                     }
 
                     _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                        self.update_position(&evt_tx, sink.get_pos()).await;
+                        let pos = sink.get_pos();
+                        self.update_position(&evt_tx, pos).await;
+
+                        if !sink.is_paused() {
+                            if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
+                                last_history_update = Arc::new(last_update);
+                            }
+                        }
                     }
                 }
 
@@ -513,6 +523,25 @@ impl Player {
         }
     }
 
+    async fn update_history(&self, last_history_update: Arc<SystemTime>, pos: Duration) -> Option<SystemTime> {
+        let item_option = self.item.clone();
+        if let Some(item) = item_option {
+            // todo: implement history update
+            // this won't work here, the increment / change of the last update makes the whole mutable requirement
+            // get rid of that by using a HistoryState?
+            // self.media_source.
+            // self.media_source.history_update(&item.id, "", pos).await;
+
+            if *last_history_update < SystemTime::now() - Duration::from_secs(5) {
+                let history_item = MediaSourceHistoryItem::new(item, self.session_key.clone(), pos.clone(), SystemTime::now());
+                let _ = self.media_source.history_update(history_item).await;
+
+                return Some(SystemTime::now());
+            }
+        }
+        None
+    }
+
     async fn update_playing_status(&self, evt_tx: &UnboundedSender<PlayerEvent>) {
         if let Some(sink) = &self.sink {
             let self_item_opt = self.item.clone();
@@ -537,4 +566,6 @@ impl Player {
             }
         }
     }
+
+
 }

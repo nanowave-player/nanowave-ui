@@ -6,7 +6,7 @@ use crate::background::file_media_source::FileMediaSource;
 use crate::background::file_scanner::{extension_filter, FileScanner, FileScannerAction};
 use crate::background::headset_handler::HeadsetHandler;
 use crate::background::input_handler::InputHandler;
-use crate::background::media_source::MediaSourceCommand;
+use crate::background::media_source::{MediaSource, MediaSourceCommand};
 use crate::background::metadata_retriever::MetadataRetriever;
 use crate::background::player::{Player, PlayerCommand, PlayerEvent};
 use crate::config::Config;
@@ -21,7 +21,6 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::gpio_handler::GpioHandler;
 use crate::background::gpio_pin::GpioPin;
-// use crate::background::file_media_source_playback_history::PlaybackHistory;
 use crate::navigation_event::NavigationEvent;
 
 mod file_scanner;
@@ -93,22 +92,12 @@ pub async fn background_tasks(config: &Config,
     let db = db_result.unwrap();
     let db_database_checker = db.clone();
     let db_media_source = db.clone();
-    let db_playback_history = db.clone();
 
     let (file_scanner_tx, file_scanner_rx) = tokio::sync::mpsc::channel::<FileScannerAction>(100);
     let (file_tx, file_rx) = tokio::sync::mpsc::channel::<PathBuf>(100);
     let (db_checker_tx, db_checker_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (meta_retriever_tx, meta_retriever_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (input_event_tx, input_event_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
-
-
-
-
-    // restore route testing todo remove
-    //
-
-
-
 
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());
@@ -140,6 +129,8 @@ pub async fn background_tasks(config: &Config,
 
     let media_source = FileMediaSource::new(config.clone(), db_media_source);
     let media_source_player = media_source.clone();
+    let media_source_history = media_source.clone();
+
     let media_source_task = tokio::spawn(async {
         println!("=== media_source_task");
         let _ = media_source.run(media_source_rx).await;
@@ -193,17 +184,11 @@ pub async fn background_tasks(config: &Config,
 
     let player_tx_history = player_tx.clone();
 
-    /*
-    if let Some(last_played_item_model) = last_played_item_model_option {
-        let item = last_played_item_model.item;
-        let last_played_id = item.unwrap().id.to_string();
-        // todo: https://docs.rs/sea-orm/latest/sea_orm/entity/prelude/struct.Time.html
-        let last_played_pos = naive_time_to_duration(last_played_item_model.position);
-        let _ = player_tx_history.send(PlayerCommand::LoadMedia(last_played_id.clone(), last_played_pos));
-        let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), last_played_id.clone()]));
+    if let Some(last_played_history_item) =  media_source_history.history_latest().await {
+        let item_id = last_played_history_item.item.id.clone();
+        let _ = player_tx_history.send(PlayerCommand::RestoreLastSession(last_played_history_item));
+        let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), item_id.clone()]));
     }
-    
-     */
 
 
     let _ = tokio::join!(file_scanner_task,
@@ -216,12 +201,6 @@ pub async fn background_tasks(config: &Config,
         gpio_task,
         input_handler_task
     );
-}
-
-fn naive_time_to_duration(naive_time: NaiveTime) -> Duration {
-    let seconds_since_midnight = naive_time.num_seconds_from_midnight();
-    let nanoseconds = naive_time.nanosecond();
-    Duration::new(seconds_since_midnight.into(), nanoseconds)
 }
 
 
