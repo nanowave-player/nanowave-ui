@@ -12,12 +12,14 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use media_source::media_source_history_item::MediaSourceHistoryItem;
+use media_source::media_source_session_key::MediaSourceSessionKey;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-use crate::background::media_source::{MediaSource, MediaSourceHistoryItem, SessionKey};
+use crate::background::media_source::{MediaSource};
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -40,7 +42,7 @@ pub enum PlayerCommand {
 
 #[derive(Debug)]
 pub enum PlayerEvent {
-    Status(String, String),
+    Status(MediaSourceItem, String),
     Position(String, Duration),
     Stopped,
     // ExternalTrigger(TriggerAction)
@@ -54,7 +56,7 @@ pub struct Player {
     stream: Option<OutputStream>, // when removed, the samples do not play
     sink: Option<Sink>,
     item: Option<MediaSourceItem>,
-    session_key: SessionKey,
+    session_key: MediaSourceSessionKey,
 }
 
 impl Player {
@@ -72,7 +74,7 @@ impl Player {
             stream: None,
             sink: None,
             item: None,
-            session_key: SessionKey::new()
+            session_key: MediaSourceSessionKey::new()
         }
     }
 
@@ -327,7 +329,7 @@ impl Player {
 
             if let Some(sink) = &self.sink {
                 if self.session_key.is_expired() {
-                    self.session_key = SessionKey::new();
+                    self.session_key = MediaSourceSessionKey::new();
                 } else if !sink.is_paused(){
                     self.session_key.extend_validity();
                 }
@@ -555,12 +557,12 @@ impl Player {
             let self_item = self_item_opt.unwrap();
             if sink.is_paused() {
                 let _ = evt_tx.send(PlayerEvent::Status(
-                    self_item.id.to_string(),
+                    self_item.clone(),
                     "paused".to_string(),
                 ));
             } else {
                 let _ = evt_tx.send(PlayerEvent::Status(
-                    self_item.id.to_string(),
+                    self_item.clone(),
                     "playing".to_string(),
                 ));
             }

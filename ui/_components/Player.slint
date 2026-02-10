@@ -10,21 +10,21 @@ export component Player {
     in-out property <SlintMediaSourceItem> item;
 
     VerticalBox {
-        if SlintAudioPlayer.current-item-id == item.id: HorizontalBox {
+        if SlintAudioPlayer.current-item.id == item.id: HorizontalBox {
             Text {
-                text: SlintAudioPlayer.position_formatted;
+                text: "Pos: " + SlintAudioPlayer.current-item.position_formatted;
             }
         }
         HorizontalBox {
             alignment: center;
-            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+            if SlintAudioPlayer.current-item.id == item.id: IconButton {
                 icon: SlintIcons.previous;
                 clicked => {
                     SlintAudioPlayer.previous();
                 }
             }
 
-            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+            if SlintAudioPlayer.current-item.id == item.id: IconButton {
                 icon: SlintIcons.replay-10;
                 clicked => {
                     SlintAudioPlayer.seek_relative(-10s);
@@ -38,14 +38,14 @@ export component Player {
                 }
             }
 
-            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+            if SlintAudioPlayer.current-item.id == item.id: IconButton {
                 icon: SlintIcons.forward-10;
                 clicked => {
                     SlintAudioPlayer.seek_relative(10s);
                 }
             }
 
-            if SlintAudioPlayer.current-item-id == item.id: IconButton {
+            if SlintAudioPlayer.current-item.id == item.id: IconButton {
                 icon: SlintIcons.next;
                 clicked => {
                     SlintAudioPlayer.next();

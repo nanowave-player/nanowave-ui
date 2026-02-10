@@ -82,6 +82,7 @@ impl MetadataRetriever {
                     title,
                     media_type,
                     metadata: meta,
+                    history: vec![],
                 };
 
 

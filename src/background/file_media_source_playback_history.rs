@@ -1,4 +1,3 @@
-use crate::background::media_source::MediaSourceHistoryItem;
 use crate::entity;
 use crate::entity::items_progress_history::ModelEx;
 use crate::entity::{item, items_json_metadata, items_metadata, items_progress_history};
@@ -7,6 +6,7 @@ use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use sea_orm::ColumnTrait;
 use sea_orm::{DatabaseConnection, QueryFilter, QueryOrder};
 use std::time::Duration;
+use media_source::media_source_history_item::MediaSourceHistoryItem;
 
 #[derive(Clone)]
 pub struct FileMediaSourcePlaybackHistory {
@@ -21,6 +21,8 @@ impl FileMediaSourcePlaybackHistory {
     }
 
     pub async fn find_latest(&self, item_id: &str) -> Option<ModelEx> {
+        println!("history->find_latest({})", item_id);
+
         // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
         let db = self.db.clone();
         let result = if item_id == "" {
@@ -39,6 +41,9 @@ impl FileMediaSourcePlaybackHistory {
         };
 
         if let Ok(history_item) = result {
+            if let Some(ex) = history_item.clone() {
+                println!("found a history item id={}, pos={}", ex.item_id, ex.position);
+            }
             return history_item;
         }
         None
@@ -74,11 +79,12 @@ impl FileMediaSourcePlaybackHistory {
         let upsert_item_option: Option<items_progress_history::ActiveModelEx> = if let Some(latest_history_item) = latest_history_item_option
             && latest_history_item.session_key == history_item.session_key.to_string() {
             println!(" => A history item exists");
+
             Some(
                 items_progress_history::ActiveModelEx::from(latest_history_item)
                     .set_date_modified(Utc::now())
-                    .set_position(duration_to_naive_time(history_item.position))
-
+                    .set_position(duration_to_naive_time(history_item.position)
+                    )
             )
         } else {
             let now = Utc::now();

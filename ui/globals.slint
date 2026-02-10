@@ -3,6 +3,45 @@ export global SlintCallbacks {
     pure callback format_duration(duration) -> string;
 }
 */
+
+
+export struct SlintMediaSourceChapter {
+    name: string,
+    start: duration,
+    duration: duration,
+}
+
+export struct SlintMediaSourceItem {
+    id: string,
+    media_type: int,
+    position_formatted: string,
+    name: string,
+    genre: string,
+    artist: string,
+    album: string,
+    composer: string,
+    series: string,
+    part: string,
+
+    // cover: string,
+    // thumbnail: string
+    has-cover: bool,
+    cover: image,
+    has-thumbnail: bool,
+    thumbnail: image,
+    chapters: [SlintMediaSourceChapter]
+}
+
+export global SlintMediaSource {
+    in-out property <bool> is-loading;
+    in-out property <[SlintMediaSourceItem]> filter-results;
+    in-out property <[SlintMediaSourceItem]> find-results;
+
+    callback filter(query: string);
+    callback find(id: string);
+
+}
+
 export global SlintIcons {
     // home
     in-out property <image> audiobooks: @image-url("images/icons/home/audiobooks.png");
@@ -23,10 +62,9 @@ export global SlintIcons {
 }
 
 export global SlintAudioPlayer {
-    in-out property <string> current-item-id;
+    in-out property <SlintMediaSourceItem> current-item;
     in-out property <string> status; // playing, paused
     in-out property <duration> position;
-    in-out property <string> position_formatted;
 
 
     callback play_test();
@@ -61,39 +99,4 @@ export global SlintPreferences {
 
     in-out property <bool> enable-gestures: true;
     in-out property <bool> display-color-test: false;
-}
-
-export struct SlintMediaSourceChapter {
-    name: string,
-    start: duration,
-    duration: duration,
-}
-
-export struct SlintMediaSourceItem {
-    id: string,
-    media_type: int,
-    name: string,
-    genre: string,
-    artist: string,
-    album: string,
-    composer: string,
-    series: string,
-    part: string,
-    // cover: string,
-    // thumbnail: string
-    has-cover: bool,
-    cover: image,
-    has-thumbnail: bool,
-    thumbnail: image,
-    chapters: [SlintMediaSourceChapter]
-}
-
-export global SlintMediaSource {
-    in-out property <bool> is-loading;
-    in-out property <[SlintMediaSourceItem]> filter-results;
-    in-out property <[SlintMediaSourceItem]> find-results;
-
-    callback filter(query: string);
-    callback find(id: string);
-
 }

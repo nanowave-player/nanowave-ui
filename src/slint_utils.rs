@@ -128,6 +128,7 @@ pub fn rust_items_to_slint_model(
                 SlintMediaSourceItem {
                     id: rust_item.id.clone().into(),
                     media_type: convert_media_type_to_int(&rust_item.media_type),
+                    position_formatted: Default::default(),
                     name: rust_item.title.clone().into(),
                     genre: option_to_slint_string(&rust_item.metadata.genre),
                     artist: option_to_slint_string(&rust_item.metadata.artist),

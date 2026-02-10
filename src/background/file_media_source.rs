@@ -1,5 +1,5 @@
 use crate::background::file_media_source_playback_history::FileMediaSourcePlaybackHistory;
-use crate::background::media_source::{MediaSource, MediaSourceCommand, MediaSourceHistoryItem, SessionKey};
+use crate::background::media_source::{MediaSource, MediaSourceCommand};
 use crate::config::Config;
 use crate::entity::item::ModelEx;
 use crate::entity::items_json_metadata::JsonTagField;
@@ -18,6 +18,8 @@ use sea_orm::DatabaseConnection;
 use sea_orm::QueryFilter;
 use sea_orm::ColumnTrait;
 use std::time::Duration;
+use media_source::media_source_history_item::MediaSourceHistoryItem;
+use media_source::media_source_session_key::MediaSourceSessionKey;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Clone)]
@@ -49,6 +51,9 @@ impl FileMediaSource {
 
                 MediaSourceCommand::Find(cmd) => {
                     let result: Option<MediaSourceItem> = self.find(&cmd.id).await;
+
+
+                    // todo: what about progress
                     (cmd.callback)(result);
                 }
             }
@@ -151,6 +156,7 @@ impl FileMediaSource {
                 cover,
                 chapters
             },
+            history: vec![]
         }
     }
 }
@@ -190,6 +196,7 @@ impl MediaSource for FileMediaSource {
                     cover: None,
                     chapters: vec![],
                 },
+                history: vec![]
             }];
         }
 
@@ -212,7 +219,7 @@ impl MediaSource for FileMediaSource {
     async fn history_latest(&self) -> Option<MediaSourceHistoryItem> {
         let latest_option = self.playback_history.find_latest("").await;
         if let Some(model) = latest_option &&
-            let Ok(session_key) = SessionKey::parse_string(model.session_key.as_str()) {
+            let Ok(session_key) = MediaSourceSessionKey::parse_string(model.session_key.as_str()) {
             let item_model = model.item.unwrap();
             let media_source_item = self.map_db_model_to_media_item(&item_model);
             let hist_item = MediaSourceHistoryItem::new(media_source_item, session_key, naive_time_to_duration(model.position), model.date_modified.into());
@@ -231,7 +238,7 @@ impl MediaSource for FileMediaSource {
             // HasOne relationship
             let model = history_item.item.unwrap();
 
-            if let Ok(session_key) = SessionKey::parse_string(history_item.session_key.as_str())  {
+            if let Ok(session_key) = MediaSourceSessionKey::parse_string(history_item.session_key.as_str())  {
                 let item = MediaSourceHistoryItem {
                     item: self.map_db_model_to_media_item(&model),
                     session_key,

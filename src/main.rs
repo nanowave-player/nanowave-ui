@@ -11,6 +11,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rand::distributions::{Alphanumeric, DistString};
 use tokio::sync::mpsc;
 use crate::navigation_event::NavigationEvent;
+use crate::slint_utils::rust_items_to_slint_model;
 
 mod background;
 mod database_wrapper;
@@ -260,16 +261,27 @@ fn main() -> Result<(), slint::PlatformError> {
                 let inner = ui.global::<SlintAudioPlayer>();
 
                 match event {
-                    PlayerEvent::Status(item_id, status) => {
-                        inner.set_current_item_id(item_id.to_shared_string());
+                    PlayerEvent::Status(item, status) => {
+                        // inner.set_current_item_id(item_id.to_shared_string());
+
+                        let slint_items = rust_items_to_slint_model(vec![item], true);
+                        if let Some(item) = slint_items.row_data(0) {
+                            inner.set_current_item(item);
+                        }
                         inner.set_status(status.to_shared_string());
+
                     }
 
                     PlayerEvent::Stopped => {}
 
                     PlayerEvent::Position(item_id, position) => {
-                        inner.set_current_item_id(item_id.to_shared_string());
-                        inner.set_position_formatted(format_duration(position).to_shared_string());
+
+                        // inner.set_current_item_id(item_id.to_shared_string());
+                        let mut item = inner.get_current_item();
+                        item.position_formatted = format_duration(position).to_shared_string();
+
+                        // inner.get_current_item().set_position_formatted(format_duration(position).to_shared_string());
+                        // inner.set_position_formatted(format_duration(position).to_shared_string());
                     }
                 }
             } else {
