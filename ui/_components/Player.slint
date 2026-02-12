@@ -9,10 +9,16 @@ import { IconButton } from "buttons/IconButton.slint";
 export component Player {
     in-out property <SlintMediaSourceItem> item;
 
+
     VerticalBox {
         if SlintAudioPlayer.current-item.id == item.id: HorizontalBox {
             Text {
-                text: "Pos: " + SlintAudioPlayer.current-item.position_formatted;
+                text: SlintAudioPlayer.current-item.position_formatted;
+            }
+        }
+        if SlintAudioPlayer.current-item.id != item.id: HorizontalBox {
+            Text {
+                text: item.position_formatted;
             }
         }
         HorizontalBox {
@@ -31,12 +37,21 @@ export component Player {
                 }
             }
 
-            TogglePlayButton {
+
+            if SlintAudioPlayer.current-item.id != item.id: TogglePlayButton {
                 is-playing: SlintAudioPlayer.status == "playing";
                 clicked => {
-                    SlintAudioPlayer.play_media(item.id);
+                    SlintAudioPlayer.play_media(item.id, item.position);
                 }
             }
+
+            if SlintAudioPlayer.current-item.id == item.id: TogglePlayButton {
+                is-playing: SlintAudioPlayer.status == "playing";
+                clicked => {
+                    SlintAudioPlayer.toggle();
+                }
+            }
+
 
             if SlintAudioPlayer.current-item.id == item.id: IconButton {
                 icon: SlintIcons.forward-10;

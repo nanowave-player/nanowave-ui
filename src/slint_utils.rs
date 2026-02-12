@@ -1,10 +1,11 @@
-use crate::{SlintMediaSourceChapter, SlintMediaSourceItem};
+use crate::{format_duration, SlintMediaSourceChapter, SlintMediaSourceItem};
 use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_picture::MediaSourcePicture;
 use media_source::media_type::MediaType;
 use slint::{ModelRc, Rgb8Pixel, SharedPixelBuffer, SharedString, ToSharedString, VecModel};
 use std::path::Path;
 use std::rc::Rc;
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadCoverResult {
@@ -125,10 +126,17 @@ pub fn rust_items_to_slint_model(
 
                 let chapters_model = ModelRc::new(slint_chapters_vec);
 
+                let position = if let Some(pos) = rust_item.position {
+                    pos
+                } else {
+                    Duration::from_secs(0)
+                };
+
                 SlintMediaSourceItem {
                     id: rust_item.id.clone().into(),
                     media_type: convert_media_type_to_int(&rust_item.media_type),
-                    position_formatted: Default::default(),
+                    position: position.as_millis() as i64,
+                    position_formatted: format_duration(position.clone()).to_shared_string(),
                     name: rust_item.title.clone().into(),
                     genre: option_to_slint_string(&rust_item.metadata.genre),
                     artist: option_to_slint_string(&rust_item.metadata.artist),

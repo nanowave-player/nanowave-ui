@@ -79,8 +79,7 @@ impl FileMediaSource {
         // format!("{}/{}", self.base_path.clone().trim_end_matches('/'), i.location.trim_start_matches('/').to_string()),
         format!("{}/{}", self.config.base_path.trim_end_matches('/'), location.trim_start_matches('/').to_string())
     }
-    pub fn map_db_model_to_media_item(&self, i: &item::ModelEx) -> MediaSourceItem {
-
+    pub fn map_db_model_to_media_item(&self, i: &ModelEx, position: Option<Duration>) -> MediaSourceItem {
 
 
 
@@ -139,6 +138,7 @@ impl FileMediaSource {
         }
 
 
+
         
         MediaSourceItem {
             id: i.id.to_string(),
@@ -156,6 +156,7 @@ impl FileMediaSource {
                 cover,
                 chapters
             },
+            position,
             history: vec![]
         }
     }
@@ -196,13 +197,14 @@ impl MediaSource for FileMediaSource {
                     cover: None,
                     chapters: vec![],
                 },
+                position: None,
                 history: vec![]
             }];
         }
 
         let items = items.unwrap();
         let result: Vec<MediaSourceItem> = items.iter().map(|i| {
-            self.map_db_model_to_media_item(i)
+            self.map_db_model_to_media_item(i, None)
         }).collect();
 
         result
@@ -210,8 +212,20 @@ impl MediaSource for FileMediaSource {
 
     async fn find(&self, id: &str) -> Option<MediaSourceItem> {
         let item = self.find_item(id).await;
+
+        let position = {
+            let history_item_option = self.playback_history.find_latest(id).await;
+            if let Some(history_item) = history_item_option {
+                Some(naive_time_to_duration(history_item.position))
+            } else {
+                None
+            }
+        };
+
+        println!("find called, position: {:?}", position.clone());
+
         if let Some(i) = item {
-            return Some(self.map_db_model_to_media_item(&i));
+            return Some(self.map_db_model_to_media_item(&i, position));
         }
         None
     }
@@ -221,7 +235,7 @@ impl MediaSource for FileMediaSource {
         if let Some(model) = latest_option &&
             let Ok(session_key) = MediaSourceSessionKey::parse_string(model.session_key.as_str()) {
             let item_model = model.item.unwrap();
-            let media_source_item = self.map_db_model_to_media_item(&item_model);
+            let media_source_item = self.map_db_model_to_media_item(&item_model, Some(naive_time_to_duration(model.position)));
             let hist_item = MediaSourceHistoryItem::new(media_source_item, session_key, naive_time_to_duration(model.position), model.date_modified.into());
             return Some(hist_item);
         }
@@ -239,10 +253,11 @@ impl MediaSource for FileMediaSource {
             let model = history_item.item.unwrap();
 
             if let Ok(session_key) = MediaSourceSessionKey::parse_string(history_item.session_key.as_str())  {
+                let position = naive_time_to_duration(history_item.position);
                 let item = MediaSourceHistoryItem {
-                    item: self.map_db_model_to_media_item(&model),
+                    item: self.map_db_model_to_media_item(&model, Some(position.clone())),
                     session_key,
-                    position: naive_time_to_duration(history_item.position),
+                    position: position.clone(),
                     date_modified: history_item.date_modified.into(),
                 };
                 filtered_items.push(item);
@@ -311,5 +326,6 @@ impl MediaSource for FileMediaSource {
 fn naive_time_to_duration(naive_time: NaiveTime) -> Duration {
     let seconds_since_midnight = naive_time.num_seconds_from_midnight();
     let nanoseconds = naive_time.nanosecond();
+    println!("naive_time_to_duration: seconds {}, nanoseconds {}", seconds_since_midnight, nanoseconds);
     Duration::new(seconds_since_midnight.into(), nanoseconds)
 }

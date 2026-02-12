@@ -14,6 +14,7 @@ export struct SlintMediaSourceChapter {
 export struct SlintMediaSourceItem {
     id: string,
     media_type: int,
+    position: duration,
     position_formatted: string,
     name: string,
     genre: string,
@@ -68,7 +69,8 @@ export global SlintAudioPlayer {
 
 
     callback play_test();
-    callback play_media(string);
+    callback play_media(string, duration);
+    callback toggle();
     callback play();
     callback pause();
     callback next();

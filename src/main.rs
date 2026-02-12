@@ -185,8 +185,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
     slint_audio_player.on_play_media({
         let tx = player_cmd_tx.clone();
-        move |file_name: SharedString| {
-            tx.send(PlayerCommand::PlayMedia(file_name.to_string()))
+        move |media_item_id: SharedString, position: i64| {
+            let position_as_duration = Duration::from_millis(position as u64);
+            tx.send(PlayerCommand::PlayMedia(media_item_id.to_string(), position_as_duration))
                 .unwrap();
         }
     });
@@ -202,6 +203,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let tx = player_cmd_tx.clone();
         move || {
             tx.send(PlayerCommand::Pause()).unwrap();
+        }
+    });
+
+    slint_audio_player.on_toggle({
+        let tx = player_cmd_tx.clone();
+        move || {
+            tx.send(PlayerCommand::Toggle()).unwrap();
         }
     });
 
@@ -275,10 +283,15 @@ fn main() -> Result<(), slint::PlatformError> {
                     PlayerEvent::Stopped => {}
 
                     PlayerEvent::Position(item_id, position) => {
-
+                        println!("item_id: {}, position: {:?}", item_id, position.clone());
                         // inner.set_current_item_id(item_id.to_shared_string());
+
                         let mut item = inner.get_current_item();
-                        item.position_formatted = format_duration(position).to_shared_string();
+                        item.position_formatted = format_duration(position.clone()).to_shared_string();
+                        inner.set_current_item(item);
+
+
+
 
                         // inner.get_current_item().set_position_formatted(format_duration(position).to_shared_string());
                         // inner.set_position_formatted(format_duration(position).to_shared_string());
@@ -296,9 +309,12 @@ fn main() -> Result<(), slint::PlatformError> {
 
 pub fn format_duration(duration: Duration) -> String {
     let millis = duration.as_millis();
+    println!("millis: {}", millis);
     let secs = millis / 1000;
     let h = secs / (60 * 60);
     let m = (secs / 60) % 60;
     let s = secs % 60;
+
+    println!("hms: {}, {}, {}", h, m, s);
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }

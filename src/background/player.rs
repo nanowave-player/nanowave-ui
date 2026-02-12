@@ -25,7 +25,7 @@ use crate::background::media_source::{MediaSource};
 pub enum PlayerCommand {
     Update(String),
     PlayTest(),
-    PlayMedia(String),
+    PlayMedia(String, Duration),
     RestoreLastSession(MediaSourceHistoryItem),
     Pause(),
     Stop(),
@@ -317,6 +317,8 @@ impl Player {
 
         let mut last_history_update = Arc::new(SystemTime::now());
 
+        let mut last_player_pos = Duration::from_secs(0);
+
         loop {
             // polling in case the audio hardware has not been successfully initialized yet
 
@@ -374,8 +376,9 @@ impl Player {
                             PlayerCommand::PlayTest() => {
                                 self.play_test().await;
                             }
-                            PlayerCommand::PlayMedia(s) => {
-                                let _ = self.play_media(s).await;
+                            PlayerCommand::PlayMedia(s, position) => {
+                                let _ = self.load_media(s, position).await;
+                                let _ = self.play();
                                 self.update_playing_status(&evt_tx).await;
                             }
                             PlayerCommand::RestoreLastSession(media_source_history_item) => {
@@ -471,7 +474,12 @@ impl Player {
 
                     _ = tokio::time::sleep(Duration::from_millis(500)) => {
                         let pos = sink.get_pos();
-                        self.update_position(&evt_tx, pos).await;
+
+                        if pos != last_player_pos {
+                            self.update_position(&evt_tx, pos).await;
+                            last_player_pos = pos;
+                        }
+
 
                         if !sink.is_paused() {
                             if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
@@ -518,8 +526,6 @@ impl Player {
     }
 
     async fn update_position(&self, evt_tx: &UnboundedSender<PlayerEvent>, pos: Duration) {
-
-
         if let Some(item) = self.item.clone() {
             let _ = evt_tx.send(PlayerEvent::Position(item.id.to_string(), pos));
         }
