@@ -20,46 +20,16 @@ impl FileMediaSourcePlaybackHistory {
         }
     }
 
-    pub async fn find_latest(&self, item_id: &str) -> Option<ModelEx> {
-        println!("history->find_latest({})", item_id);
-
-        // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
-        let db = self.db.clone();
-        let result = if item_id == "" {
-            items_progress_history::Entity::load()
-                .with(item::Entity)
-                .order_by_desc(item::Column::DateModified)
-                .one(&db)
-                .await
-        } else {
-            items_progress_history::Entity::load()
-                .filter(items_progress_history::Column::ItemId.eq(item_id))  // ← Filter here
-                .with(item::Entity)
-                .order_by_desc(item::Column::DateModified)
-                .one(&db)
-                .await
-        };
-
-        if let Ok(history_item) = result {
-            if let Some(ex) = history_item.clone() {
-                println!("found a history item id={}, pos={}", ex.item_id, ex.position);
-            }
-            return history_item;
-        }
-        None
-    }
-
-
     pub async fn filter(&self, query: &str) -> Vec<entity::items_progress_history::ModelEx> {
         // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
         let db = self.db.clone();
         let result = entity::items_progress_history::Entity::load()
             .filter(items_progress_history::Column::ItemId.eq(query))  // ← Filter here
+            .order_by_desc(items_progress_history::Column::DateModified)
             .with(item::Entity)
             // .filter(items_progress_history::Entity)
             //             .filter(item::Column::FileId.eq(file_id_str.clone()))
             // .filter(item::Column::ItemId.eq(self.last_id))
-            .order_by_desc(item::Column::DateModified)
             .all(&db)
             .await;
 
@@ -70,15 +40,62 @@ impl FileMediaSourcePlaybackHistory {
     }
 
 
+    pub async fn find_latest(&self, item_id: &str) -> Option<ModelEx> {
+        println!("history->find_latest({})", item_id);
+
+        // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
+        let db = self.db.clone();
+        let result = if item_id == "" {
+            items_progress_history::Entity::load()
+                .order_by_desc(items_progress_history::Column::DateModified)
+                .with(item::Entity)
+                .one(&db)
+                .await
+        } else {
+            items_progress_history::Entity::load()
+                .filter(items_progress_history::Column::ItemId.eq(item_id))  // ← Filter here
+                .order_by_desc(items_progress_history::Column::DateModified)
+                .with(item::Entity)
+                .one(&db)
+                .await
+        };
+
+        if let Ok(history_item) = result {
+            if let Some(ex) = history_item.clone() {
+                println!("found a history item id={}, pos={}", ex.item_id, ex.position);
+            }
+            return history_item;
+        } else {
+            println!("no history item found");
+        }
+        None
+    }
+
+
     pub async fn update(&self, history_item: MediaSourceHistoryItem) -> bool {
-        println!("Update history item");
         let db = self.db.clone();
         let item_id = history_item.item.id;
+
+        println!("Update history item: {:?}", item_id.clone());
+
         let latest_history_item_option = self.find_latest(&item_id).await;
 
-        let upsert_item_option: Option<items_progress_history::ActiveModelEx> = if let Some(latest_history_item) = latest_history_item_option
-            && latest_history_item.session_key == history_item.session_key.to_string() {
+        if latest_history_item_option.clone().is_some() {
+            let debug_item = latest_history_item_option.clone().unwrap();
             println!(" => A history item exists");
+            println!(" => id:{}, item_id:{} session_key:{}", debug_item.id, debug_item.item_id, debug_item.session_key);
+
+            if debug_item.session_key != history_item.session_key.to_string() {
+                println!("session_key FAILED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
+            } else {
+                println!("session_key MATCHED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
+            }
+        }
+
+
+
+        let upsert_item_option = if let Some(latest_history_item) = latest_history_item_option
+            && latest_history_item.session_key == history_item.session_key.to_string() {
 
             Some(
                 items_progress_history::ActiveModelEx::from(latest_history_item)
@@ -88,7 +105,7 @@ impl FileMediaSourcePlaybackHistory {
             )
         } else {
             let now = Utc::now();
-            println!(" => create anew history item");
+            println!(" => create a new history item");
 
             let item_result = item::Entity::load()
                 .filter(item::Column::Id.eq(&item_id))
