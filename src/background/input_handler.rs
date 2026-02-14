@@ -1,10 +1,16 @@
 use crate::background::player::PlayerCommand;
 use crate::input_event::InputEventAction::{Press, Release};
-use crate::input_event::InputEvent;
+use crate::input_event::{InputEvent, InputEventButton};
 use debounce::EventDebouncer;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use media_source::media_source_item::MediaSourceItem;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+
+#[derive(Debug)]
+pub enum PreferencesCommand {
+     SetEnableTouchEvents(bool),
+}
 
 pub struct InputHandler {
 }
@@ -17,8 +23,11 @@ impl InputHandler {
 
     pub async fn run(
         &mut self,
+
         mut headset_rx: UnboundedReceiver<InputEvent>,
         player_tx: Arc<UnboundedSender<PlayerCommand>>,
+        prefs_tx: UnboundedSender<PreferencesCommand>,
+
     ) {
         println!("INPUT_HANDLER run");
 
@@ -33,7 +42,7 @@ impl InputHandler {
 
         let player_tx_cancel_clone = player_tx.clone();
 
-        let debouncer = EventDebouncer::new(delay, move |str: &str| {
+        let debouncer = EventDebouncer::new(delay, move |_str: &str| {
             let mut clicks_lock = clicks_clone.lock().unwrap();
             let hold_lock = hold_clone.lock().unwrap();
 
@@ -87,38 +96,46 @@ impl InputHandler {
 
         loop {
 
+            let mut enable_touch_events = true;
             while let Some(event) = headset_rx.recv().await {
                 match event {
                     InputEvent::ButtonEvent(device, button, action) => {
+                        match button {
+                            InputEventButton::PlayPause => {
+                                let mut should_execute = true;
+                                let mut clicks_lock = clicks.lock().unwrap();
+                                let mut hold_lock = hold.lock().unwrap();
 
-                        // todo: handle different devices and buttons
+                                match action {
+                                    Press => {
+                                        *clicks_lock = *clicks_lock + 1;
+                                        *hold_lock = true;
+                                    }
+                                    Release => {
+                                        // do not execute debouncer if we have a release after a long hold
+                                        should_execute = *clicks_lock > 0;
+                                        *hold_lock = false;
+                                    }
+                                }
 
-                        let mut should_execute = true;
-                        let mut clicks_lock = clicks.lock().unwrap();
-                        let mut hold_lock = hold.lock().unwrap();
-
-                        match action {
-                            Press => {
-                                *clicks_lock = *clicks_lock + 1;
-                                *hold_lock = true;
+                                // println!("clicks: {}, hold: {}", *clicks_lock, *hold_lock);
+                                drop(clicks_lock);
+                                drop(hold_lock);
+                                if should_execute {
+                                    debouncer.put("");
+                                } else {
+                                    cancel_cb();
+                                }
+                            },
+                            InputEventButton::Power => {
+                                if action == Release {
+                                    let _ = prefs_tx.send(PreferencesCommand::SetEnableTouchEvents(!enable_touch_events));
+                                    enable_touch_events = !enable_touch_events;
+                                }
                             }
-                            Release => {
-                                // do not execute debouncer if we have a release after a long hold
-                                should_execute = *clicks_lock > 0;
-                                *hold_lock = false;
-                            }
-                        }
-
-                        // println!("clicks: {}, hold: {}", *clicks_lock, *hold_lock);
-                        drop(clicks_lock);
-                        drop(hold_lock);
-                        if should_execute {
-                            debouncer.put("");
-                        } else {
-                            cancel_cb();
+                            _ => {}
                         }
                     }
-                    _ => {}
                 }
             }
         }

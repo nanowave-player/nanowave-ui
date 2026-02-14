@@ -5,7 +5,7 @@ use crate::background::database_upsert_item::DatabaseUpsertItem;
 use crate::background::file_media_source::FileMediaSource;
 use crate::background::file_scanner::{extension_filter, FileScanner, FileScannerAction};
 use crate::background::headset_handler::HeadsetHandler;
-use crate::background::input_handler::InputHandler;
+use crate::background::input_handler::{InputHandler, PreferencesCommand};
 use crate::background::media_source::{MediaSource, MediaSourceCommand};
 use crate::background::metadata_retriever::MetadataRetriever;
 use crate::background::player::{Player, PlayerCommand, PlayerEvent};
@@ -31,18 +31,18 @@ mod database_upsert_item;
 mod file_media_source;
 pub(crate) mod media_source;
 pub(crate) mod player;
-mod input_handler;
+pub(crate) mod input_handler;
 mod headset_handler;
 mod gpio_handler;
 mod gpio_pin;
 mod file_media_source_playback_history;
-
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                                     player_tx: Arc<UnboundedSender<PlayerCommand>>,
                                     player_rx: UnboundedReceiver<PlayerCommand>,
                                     player_evt_tx: UnboundedSender<PlayerEvent>,
                                     navigation_evt_tx: UnboundedSender<NavigationEvent>,
+                                    prefs_tx: UnboundedSender<PreferencesCommand>,
 ) {
     println!("=== start_tokio_background_tasks");
     thread::spawn(move || {
@@ -53,6 +53,7 @@ pub fn start_tokio_background_tasks(config: Config,
             player_rx,
             player_evt_tx,
             navigation_evt_tx,
+            prefs_tx
         ));
     });
 
@@ -76,7 +77,7 @@ pub async fn background_tasks(config: &Config,
                               player_rx: UnboundedReceiver<PlayerCommand>,
                               player_evt_tx: UnboundedSender<PlayerEvent>,
                               navigation_evt_tx: UnboundedSender<NavigationEvent>,
-
+                              prefs_tx: UnboundedSender<PreferencesCommand>,
 ) {
 
     println!("=== background_tasks");
@@ -101,6 +102,8 @@ pub async fn background_tasks(config: &Config,
 
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());
+
+    
 
     let config_file_scanner = config.clone();
     let file_scanner_task = tokio::spawn(async {
@@ -158,7 +161,7 @@ pub async fn background_tasks(config: &Config,
     let player_tx_input_handler = player_tx.clone();
     let input_handler_task = tokio::spawn(async {
         println!("=== input_handler_task");
-        let _ = InputHandler::new().run(input_event_rx, player_tx_input_handler).await;
+        let _ = InputHandler::new().run(input_event_rx, player_tx_input_handler, prefs_tx).await;
     });
 
 

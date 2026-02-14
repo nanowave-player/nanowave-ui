@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rand::distributions::{Alphanumeric, DistString};
 use tokio::sync::mpsc;
+use crate::background::input_handler::PreferencesCommand;
 use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
 
@@ -23,11 +24,13 @@ mod slint_utils;
 mod input_event;
 mod navigation_event;
 
+
 fn main() -> Result<(), slint::PlatformError> {
     let base_path = "media/";
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
+    let (prefs_cmd_tx, mut prefs_cmd_rx) = mpsc::unbounded_channel::<PreferencesCommand>();
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
 
 
@@ -41,7 +44,8 @@ fn main() -> Result<(), slint::PlatformError> {
                                  player_cmd_tx_shared,
                                  player_cmd_rx,
                                  player_evt_tx.clone(),
-                                 navigation_evt_tx.clone()
+                                 navigation_evt_tx.clone(),
+                                 prefs_cmd_tx.clone()
     );
 
 
@@ -55,7 +59,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
-
 
     let navigation = ui.global::<SlintNavigation>();
     navigation.on_goto(move |value| {
@@ -243,6 +246,22 @@ fn main() -> Result<(), slint::PlatformError> {
                 .unwrap();
         }
     });
+
+    let ui_handle_prefs = ui.as_weak();
+    slint::spawn_local(async move {
+        while let Some(event) = prefs_cmd_rx.recv().await {
+            if let Some(ui) = ui_handle_prefs.upgrade() {
+                let inner = ui.global::<SlintPreferences>();
+                match event {
+                    PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
+                        println!("set_enable_touch_events: {}", enable_touch_events);
+                        inner.set_enable_touch_events(enable_touch_events);
+                    }
+                }
+
+            }
+        }
+    }).unwrap();
 
     let ui_handle_navigation = ui.as_weak();
     slint::spawn_local(async move {
