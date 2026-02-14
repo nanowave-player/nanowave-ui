@@ -283,7 +283,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     PlayerEvent::Stopped => {}
 
                     PlayerEvent::Position(item_id, position) => {
-                        println!("item_id: {}, position: {:?}", item_id, position.clone());
+                        // println!("item_id: {}, position: {:?}", item_id, position.clone());
                         // inner.set_current_item_id(item_id.to_shared_string());
 
                         let mut item = inner.get_current_item();
@@ -309,12 +309,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
 pub fn format_duration(duration: Duration) -> String {
     let millis = duration.as_millis();
-    println!("millis: {}", millis);
     let secs = millis / 1000;
     let h = secs / (60 * 60);
     let m = (secs / 60) % 60;
     let s = secs % 60;
-
-    println!("hms: {}, {}, {}", h, m, s);
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }

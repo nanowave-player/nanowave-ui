@@ -222,7 +222,6 @@ impl MediaSource for FileMediaSource {
             }
         };
 
-        println!("find called, position: {:?}", position.clone());
 
         if let Some(i) = item {
             return Some(self.map_db_model_to_media_item(&i, position));
@@ -266,59 +265,10 @@ impl MediaSource for FileMediaSource {
 
         filtered_items
 
-        /*
-        let db = self.db.clone();
-        let result = entity::items_progress_history::Entity::load()
-            .with(item::Entity)
-            .order_by_desc(item::Column::DateModified)
-            .all(&db)
-            .await;
-
-        let mut filtered_items: Vec<MediaSourceHistoryItem> = vec![];
-        if let Ok(history_items) = result {
-            for history_item in history_items {
-                let model = history_item.item.unwrap();
-                let item = MediaSourceHistoryItem {
-                    item: self.map_db_model_to_media_item(&model, Some(&model.metadata), Some(&model.json)),
-                    session_key: history_item.session_key,
-                    position: naive_time_to_duration(history_item.position),
-                    date_modified: history_item.date_modified.into(),
-                };
-                filtered_items.push(item);
-            }
-        }
-        filtered_items
-
-         */
     }
 
     async fn history_update(&self, history_item: MediaSourceHistoryItem) -> bool {
         self.playback_history.update(history_item).await
-
-        /*
-        let db = self.db.clone();
-
-        let item_option = self.find_item(&media_item_id).await;
-        let now = Utc::now();
-
-        if let Some(item) = item_option {
-            let builder = items_progress_history::ActiveModel::builder()
-                .set_session_key(random_session_key)
-                .set_item(item)
-                .set_position(duration_to_naive_time(new_position))
-                .set_date_modified(now);
-
-            let result = builder
-                .save(&db)
-                .await;
-
-            if result.is_err() {
-                return false;
-            }
-        }
-        true
-
-         */
     }
 }
 
@@ -326,6 +276,5 @@ impl MediaSource for FileMediaSource {
 fn naive_time_to_duration(naive_time: NaiveTime) -> Duration {
     let seconds_since_midnight = naive_time.num_seconds_from_midnight();
     let nanoseconds = naive_time.nanosecond();
-    println!("naive_time_to_duration: seconds {}, nanoseconds {}", seconds_since_midnight, nanoseconds);
     Duration::new(seconds_since_midnight.into(), nanoseconds)
 }
