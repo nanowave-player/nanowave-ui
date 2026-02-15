@@ -99,7 +99,7 @@ impl InputHandler {
             let mut enable_touch_events = true;
             while let Some(event) = headset_rx.recv().await {
                 match event {
-                    InputEvent::ButtonEvent(device, button, action) => {
+                    InputEvent::ButtonEvent(_device, button, action) => {
                         match button {
                             InputEventButton::PlayPause => {
                                 let mut should_execute = true;
@@ -131,6 +131,13 @@ impl InputHandler {
                                 if action == Release {
                                     let _ = prefs_tx.send(PreferencesCommand::SetEnableTouchEvents(!enable_touch_events));
                                     enable_touch_events = !enable_touch_events;
+
+                                    if enable_touch_events {
+                                        self.turn_display_on();
+                                    } else {
+                                        self.turn_display_off();
+                                    }
+
                                 }
                             }
                             _ => {}
@@ -142,5 +149,36 @@ impl InputHandler {
 
     }
 
+    fn turn_display_on(&self) {
+        // Back to normal (may need to send LCD init cmds after re-enabling it):
+        // devmem 0x30010a4 32 0x00
 
+        // alternative: turn on backlight only
+        // echo 1 > /sys/class/pwm/pwmchip8/pwm2/enable
+
+
+        let address: u32 = 0x30010a4;
+        let value: u32 = 0x00;
+        peekpoke::write(address, value);
+    }
+
+    fn turn_display_off(&self) {
+        // Reset/turn off LCD:
+        // devmem 0x30010a4 32 0x04
+
+        // alternative: turn off backlight only
+        // echo 0 > /sys/class/pwm/pwmchip8/pwm2/enable
+        let address: u32 = 0x30010a4;
+        let value: u32 = 0x04;
+        peekpoke::write(address, value);
+    }
+
+    /*
+    fn display_brightness() {
+        // min-value:0
+        // max-value: Unknown, but should not be more than 2500
+        // echo 1000 > /sys/class/pwm/pwmchip8/pwm2/duty_cycle
+    }
+    
+     */
 }
