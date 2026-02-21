@@ -1,9 +1,11 @@
-use chrono::Timelike;
+use crate::background::battery_gauge::{StatusEvent, BatteryGauge};
 use crate::background::database_existence_checker::DatabaseExistenceChecker;
 use crate::background::database_updater::DatabaseUpdater;
 use crate::background::database_upsert_item::DatabaseUpsertItem;
 use crate::background::file_media_source::FileMediaSource;
 use crate::background::file_scanner::{extension_filter, FileScanner, FileScannerAction};
+use crate::background::gpio_handler::GpioHandler;
+use crate::background::gpio_pin::GpioPin;
 use crate::background::headset_handler::HeadsetHandler;
 use crate::background::input_handler::{InputHandler, PreferencesCommand};
 use crate::background::media_source::{MediaSource, MediaSourceCommand};
@@ -12,16 +14,13 @@ use crate::background::player::{Player, PlayerCommand, PlayerEvent};
 use crate::config::Config;
 use crate::database_wrapper::DatabaseWrapper;
 use crate::input_event;
+use crate::navigation_event::NavigationEvent;
+use chrono::Timelike;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
-use chrono::NaiveTime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use crate::background::gpio_handler::GpioHandler;
-use crate::background::gpio_pin::GpioPin;
-use crate::navigation_event::NavigationEvent;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -36,6 +35,8 @@ mod headset_handler;
 mod gpio_handler;
 mod gpio_pin;
 mod file_media_source_playback_history;
+pub(crate) mod battery_gauge;
+
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                                     player_tx: Arc<UnboundedSender<PlayerCommand>>,
@@ -43,6 +44,7 @@ pub fn start_tokio_background_tasks(config: Config,
                                     player_evt_tx: UnboundedSender<PlayerEvent>,
                                     navigation_evt_tx: UnboundedSender<NavigationEvent>,
                                     prefs_tx: UnboundedSender<PreferencesCommand>,
+                                    status_tx: UnboundedSender<StatusEvent>,
 ) {
     println!("=== start_tokio_background_tasks");
     thread::spawn(move || {
@@ -53,7 +55,8 @@ pub fn start_tokio_background_tasks(config: Config,
             player_rx,
             player_evt_tx,
             navigation_evt_tx,
-            prefs_tx
+            prefs_tx,
+            status_tx
         ));
     });
 
@@ -78,6 +81,7 @@ pub async fn background_tasks(config: &Config,
                               player_evt_tx: UnboundedSender<PlayerEvent>,
                               navigation_evt_tx: UnboundedSender<NavigationEvent>,
                               prefs_tx: UnboundedSender<PreferencesCommand>,
+                              status_tx: UnboundedSender<StatusEvent>,
 ) {
 
     println!("=== background_tasks");
@@ -103,7 +107,11 @@ pub async fn background_tasks(config: &Config,
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());
 
-    
+
+    let battery_checker_task = tokio::spawn(async {
+        let _ = BatteryGauge::new().run(status_tx).await;
+    });
+
 
     let config_file_scanner = config.clone();
     let file_scanner_task = tokio::spawn(async {
@@ -202,7 +210,8 @@ pub async fn background_tasks(config: &Config,
         player_task,
         headset_task,
         gpio_task,
-        input_handler_task
+        input_handler_task,
+        battery_checker_task
     );
 }
 

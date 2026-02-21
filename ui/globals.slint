@@ -103,3 +103,14 @@ export global SlintPreferences {
     in-out property <bool> enable-gestures: true;
     in-out property <bool> display-color-test: false;
 }
+
+export struct SlintBatteryStatus {
+    percent: float,
+    charging: bool,
+    health: string,
+}
+
+export global SlintStatus {
+    in-out property <SlintBatteryStatus> battery;
+}
+

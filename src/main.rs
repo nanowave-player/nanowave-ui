@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rand::distributions::{Alphanumeric, DistString};
 use tokio::sync::mpsc;
+use crate::background::battery_gauge::StatusEvent;
 use crate::background::input_handler::PreferencesCommand;
 use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
@@ -32,6 +33,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
     let (prefs_cmd_tx, mut prefs_cmd_rx) = mpsc::unbounded_channel::<PreferencesCommand>();
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
+    let (status_evt_tx, mut status_evt_rx) = mpsc::unbounded_channel::<StatusEvent>();
 
 
     let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
@@ -45,7 +47,8 @@ fn main() -> Result<(), slint::PlatformError> {
                                  player_cmd_rx,
                                  player_evt_tx.clone(),
                                  navigation_evt_tx.clone(),
-                                 prefs_cmd_tx.clone()
+                                 prefs_cmd_tx.clone(),
+                                 status_evt_tx.clone()
     );
 
 
@@ -256,6 +259,25 @@ fn main() -> Result<(), slint::PlatformError> {
                     PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
                         println!("set_enable_touch_events: {}", enable_touch_events);
                         inner.set_enable_touch_events(enable_touch_events);
+                    }
+                }
+
+            }
+        }
+    }).unwrap();
+
+    let ui_handle_status = ui.as_weak();
+    slint::spawn_local(async move {
+        while let Some(event) = status_evt_rx.recv().await {
+            if let Some(ui) = ui_handle_status.upgrade() {
+                let inner = ui.global::<SlintStatus>();
+                match event {
+                    StatusEvent::UpdateBattery(percentage) => {
+                        inner.set_battery(SlintBatteryStatus {
+                            percent: 0.82,
+                            charging: true,
+                            health: "Good".into(),
+                        });
                     }
                 }
 

@@ -29,6 +29,8 @@ sysfs_gpio = { version = "0.6.2", features = ["async-tokio"] }
 futures = "0.3.31"
 rand = "0.8.5"
 peekpoke = "0.3.0"
+max170xx = "1.0.0"
+linux-embedded-hal = "0.4.1"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)
