@@ -34,8 +34,9 @@ impl BatteryGauge {
 
             } else {
                 println!("Failed to i2c-5: {:?}", dev_result.err());
-
             }
+
+            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
         }
     }
 }

@@ -4,7 +4,7 @@ use crate::input_event::{InputEvent, InputEventButton};
 use debounce::EventDebouncer;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use media_source::media_source_item::MediaSourceItem;
+use tokio::fs;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug)]
@@ -94,6 +94,9 @@ impl InputHandler {
             player_tx_clone.send(PlayerCommand::CancelOngoing()).ok();
         };
 
+
+
+
         loop {
 
             let mut enable_touch_events = true;
@@ -128,17 +131,41 @@ impl InputHandler {
                                 }
                             },
                             InputEventButton::Power => {
+
+                                println!("Power button pressed");
+
+                                /*
+                                let pwm_option : Option<Pwm> = {
+                                    let chip = PwmChip { number: 8 };
+                                    if let Ok(pwm) = Pwm::new(chip.number, 2) {
+                                        // ensures pwm exists
+                                        if let Ok(_) = pwm.export() {
+                                            Some(pwm);
+                                        }
+                                    }
+                                    println!("Cound not use pwm 2 -> None");
+                                    None
+                                };
+                                */
+
+
                                 if action == Release {
                                     let _ = prefs_tx.send(PreferencesCommand::SetEnableTouchEvents(!enable_touch_events));
                                     enable_touch_events = !enable_touch_events;
 
                                     if enable_touch_events {
-                                        self.turn_display_on();
+                                        // self.turn_display_on();
+                                        println!("turn display ON");
+                                        // let _ = pwm.enable(true);
+                                        self.switch_display(true).await;
                                     } else {
-                                        self.turn_display_off();
+                                        // self.turn_display_off(pwm);
+                                        println!("turn display OFF");
+                                        self.switch_display(false).await;
+                                        // let _ = pwm.enable(false);
                                     }
-
                                 }
+
                             }
                             _ => {}
                         }
@@ -149,6 +176,12 @@ impl InputHandler {
 
     }
 
+    async fn switch_display(&self, on: bool) {
+        let value = if on{ "1" }else{ "0"};
+        let _ = fs::write("/sys/class/pwm/pwmchip8/pwm2/enable", value).await;
+    }
+
+
     fn turn_display_on(&self) {
         // Back to normal (may need to send LCD init cmds after re-enabling it):
         // devmem 0x30010a4 32 0x00
@@ -156,6 +189,19 @@ impl InputHandler {
         // alternative: turn on backlight only
         // echo 1 > /sys/class/pwm/pwmchip8/pwm2/enable
 
+
+        /*
+            // pwmchip8, channel 2  ->  /sys/class/pwm/pwmchip8/pwm2/...
+    let chip = PwmChip { number: 8 };
+    let pwm = Pwm::new(chip, 2);
+
+    pwm.export()?;              // ensures /pwm2/ exists
+    pwm.enable(true)?;          // writes "1" to enable
+    pwm.set_period_ns(20_000_000)?;      // 20 ms
+    pwm.set_duty_cycle_ns(1_500_000)?;   // 1.5 ms
+
+    Ok(())
+         */
 
         let address: u32 = 0x30010a4;
         let value: u32 = 0x00;
