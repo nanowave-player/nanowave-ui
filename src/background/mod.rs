@@ -21,6 +21,9 @@ use std::sync::Arc;
 use std::thread;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use crate::background::display_controller::{DisplayCommand, DisplayController};
+use crate::background::scheduler::{Scheduler, SchedulerEvent};
+
 
 mod file_scanner;
 mod database_existence_checker;
@@ -36,6 +39,8 @@ mod gpio_handler;
 mod gpio_pin;
 mod file_media_source_playback_history;
 pub(crate) mod battery_gauge;
+mod scheduler;
+mod display_controller;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
@@ -103,13 +108,25 @@ pub async fn background_tasks(config: &Config,
     let (db_checker_tx, db_checker_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (meta_retriever_tx, meta_retriever_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (input_event_tx, input_event_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
+    let (display_tx, display_rx) = mpsc::unbounded_channel::<DisplayCommand>();
+    let (scheduler_tx, scheduler_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
 
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());
 
 
+
+    let display_tx_scheduler = display_tx.clone();
+    let timer_task = tokio::spawn(async {
+        let _ = Scheduler::new().run(scheduler_rx, display_tx_scheduler).await;
+    });
+
     let battery_checker_task = tokio::spawn(async {
         let _ = BatteryGauge::new().run(status_tx).await;
+    });
+
+    let display_controller_task = tokio::spawn(async {
+        let _ = DisplayController::new().run(display_rx).await;
     });
 
 
@@ -158,18 +175,11 @@ pub async fn background_tasks(config: &Config,
 
 
 
-    let headset_task = tokio::spawn(async {
-        println!("=== headset_task");
-        let device_paths = vec!["/dev/input/event2", "/dev/input/event13"];
-        let _ = HeadsetHandler::new().run(device_paths, headset_tx).await;
-    });
-
-
 
     let player_tx_input_handler = player_tx.clone();
     let input_handler_task = tokio::spawn(async {
         println!("=== input_handler_task");
-        let _ = InputHandler::new().run(input_event_rx, player_tx_input_handler, prefs_tx).await;
+        let _ = InputHandler::new().run(input_event_rx, player_tx_input_handler, display_tx).await;
     });
 
 
@@ -202,16 +212,27 @@ pub async fn background_tasks(config: &Config,
     }
 
 
-    let _ = tokio::join!(file_scanner_task,
+    // start this at last pos because it is blocking, if there is no headset connected (todo: fix this)
+    let headset_task = tokio::spawn(async {
+        println!("=== headset_task");
+        let device_paths = vec!["/dev/input/event2", "/dev/input/event13"];
+        let _ = HeadsetHandler::new().run(device_paths, headset_tx).await;
+    });
+
+
+    let _ = tokio::join!(
+        timer_task,
+        display_controller_task,
+        file_scanner_task,
         database_checker_task,
         metadata_retriever_task,
         database_updater_task,
         media_source_task,
         player_task,
-        headset_task,
         gpio_task,
         input_handler_task,
-        battery_checker_task
+        battery_checker_task,
+        headset_task,
     );
 }
 
