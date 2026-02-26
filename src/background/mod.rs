@@ -22,8 +22,8 @@ use std::thread;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::display_controller::{DisplayCommand, DisplayController};
-use crate::background::scheduler::{Scheduler, SchedulerEvent};
-
+use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
+use crate::background::scheduler::scheduler::{Scheduler, SchedulerEvent};
 
 mod file_scanner;
 mod database_existence_checker;
@@ -31,16 +31,19 @@ mod database_updater;
 mod metadata_retriever;
 mod database_upsert_item;
 mod file_media_source;
-pub(crate) mod media_source;
-pub(crate) mod player;
-pub(crate) mod input_handler;
+
 mod headset_handler;
 mod gpio_handler;
 mod gpio_pin;
 mod file_media_source_playback_history;
-pub(crate) mod battery_gauge;
-mod scheduler;
 mod display_controller;
+
+pub(crate) mod battery_gauge;
+pub(crate) mod input_handler;
+pub(crate) mod media_source;
+pub(crate) mod player;
+pub(crate) mod scheduler;
+
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
@@ -50,6 +53,8 @@ pub fn start_tokio_background_tasks(config: Config,
                                     navigation_evt_tx: UnboundedSender<NavigationEvent>,
                                     prefs_tx: UnboundedSender<PreferencesCommand>,
                                     status_tx: UnboundedSender<StatusEvent>,
+                                    scheduler_rx: UnboundedReceiver<SchedulerEvent>,
+
 ) {
     println!("=== start_tokio_background_tasks");
     thread::spawn(move || {
@@ -61,7 +66,8 @@ pub fn start_tokio_background_tasks(config: Config,
             player_evt_tx,
             navigation_evt_tx,
             prefs_tx,
-            status_tx
+            status_tx,
+            scheduler_rx
         ));
     });
 
@@ -87,6 +93,8 @@ pub async fn background_tasks(config: &Config,
                               navigation_evt_tx: UnboundedSender<NavigationEvent>,
                               prefs_tx: UnboundedSender<PreferencesCommand>,
                               status_tx: UnboundedSender<StatusEvent>,
+                              scheduler_rx: UnboundedReceiver<SchedulerEvent>,
+
 ) {
 
     println!("=== background_tasks");
@@ -109,16 +117,17 @@ pub async fn background_tasks(config: &Config,
     let (meta_retriever_tx, meta_retriever_rx) = tokio::sync::mpsc::channel::<DatabaseUpsertItem>(100);
     let (input_event_tx, input_event_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
     let (display_tx, display_rx) = mpsc::unbounded_channel::<DisplayCommand>();
-    let (scheduler_tx, scheduler_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
+    // let (scheduler_tx, scheduler_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
 
     let headset_tx = Arc::new(input_event_tx.clone());
     let gpio_tx = Arc::new(input_event_tx.clone());
 
 
-
     let display_tx_scheduler = display_tx.clone();
-    let timer_task = tokio::spawn(async {
-        let _ = Scheduler::new().run(scheduler_rx, display_tx_scheduler).await;
+    let scheduler_task = tokio::spawn(async {
+        let _ = Scheduler::new()
+            .add_task(Box::new(DisplayAutoShutdownTask::new(display_tx_scheduler)))
+            .run(scheduler_rx).await;
     });
 
     let battery_checker_task = tokio::spawn(async {
@@ -221,7 +230,6 @@ pub async fn background_tasks(config: &Config,
 
 
     let _ = tokio::join!(
-        timer_task,
         display_controller_task,
         file_scanner_task,
         database_checker_task,
@@ -233,6 +241,7 @@ pub async fn background_tasks(config: &Config,
         input_handler_task,
         battery_checker_task,
         headset_task,
+        scheduler_task,
     );
 }
 

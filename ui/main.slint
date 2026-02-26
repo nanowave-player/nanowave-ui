@@ -39,6 +39,8 @@ export component MainWindow inherits Window {
     in-out property <physical-length> cur-pos: 0px;
     in-out property <physical-length> pressed-pos: 0px;
 
+    callback touch_event();
+
 
     // 368 x 552
     width: 368px;
@@ -95,12 +97,15 @@ export component MainWindow inherits Window {
 
     }
 
-
+    /*
     if !SlintPreferences.enable-touch-events: TouchArea {
         width: 100%;
         height: 100%;
         pointer-event(e) => {
-            return false;
+            SlintPreferences.user_interaction();
+            return EventResult.reject;
+            // return false;
         }
     }
+    */
 }

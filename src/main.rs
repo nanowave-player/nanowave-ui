@@ -1,19 +1,23 @@
 slint::include_modules!();
 
+use std::any::type_name;
+use crate::background::battery_gauge::StatusEvent;
+use crate::background::input_handler::PreferencesCommand;
 use crate::background::media_source::{FilterCommand, FindCommand, MediaSourceCommand};
 use crate::background::player::{PlayerCommand, PlayerEvent};
 use crate::config::Config;
+use crate::navigation_event::NavigationEvent;
+use crate::slint_utils::rust_items_to_slint_model;
 use background::start_tokio_background_tasks;
+use rand::distributions::DistString;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use rand::distributions::{Alphanumeric, DistString};
+use std::time::Duration;
 use tokio::sync::mpsc;
-use crate::background::battery_gauge::StatusEvent;
-use crate::background::input_handler::PreferencesCommand;
-use crate::navigation_event::NavigationEvent;
-use crate::slint_utils::rust_items_to_slint_model;
+use tokio::sync::mpsc::UnboundedSender;
+use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
+use crate::background::scheduler::scheduler::SchedulerEvent;
 
 mod background;
 mod database_wrapper;
@@ -34,11 +38,22 @@ fn main() -> Result<(), slint::PlatformError> {
     let (prefs_cmd_tx, mut prefs_cmd_rx) = mpsc::unbounded_channel::<PreferencesCommand>();
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
     let (status_evt_tx, mut status_evt_rx) = mpsc::unbounded_channel::<StatusEvent>();
+    let (scheduler_evt_tx, mut scheduler_evt_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
 
 
     let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
     let media_source_filter_tx = media_source_tx.clone();
     let media_source_find_tx = media_source_tx.clone();
+
+
+    let scheduler_evt_tx_arc = Arc::new(scheduler_evt_tx.clone());
+    /*
+    let scheduler_evt_tx_nav_goto = scheduler_evt_tx_arc.clone();
+    let scheduler_evt_tx_nav_back = scheduler_evt_tx_arc.clone();
+    let scheduler_evt_tx_nav_forward = scheduler_evt_tx_arc.clone();
+    let scheduler_evt_tx_source_filter = scheduler_evt_tx_arc.clone();
+    let scheduler_evt_tx_source_find = scheduler_evt_tx_arc.clone();;
+    */
 
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
@@ -48,7 +63,8 @@ fn main() -> Result<(), slint::PlatformError> {
                                  player_evt_tx.clone(),
                                  navigation_evt_tx.clone(),
                                  prefs_cmd_tx.clone(),
-                                 status_evt_tx.clone()
+                                 status_evt_tx.clone(),
+                                 scheduler_evt_rx
     );
 
 
@@ -62,6 +78,16 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
+
+    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
+
+    let slint_preferences = ui.global::<SlintPreferences>();
+    slint_preferences.on_user_interaction(move || {
+        println!("user interaction detected: sending timer reset");
+        let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(type_name::<DisplayAutoShutdownTask>().to_string()));
+    });
+
+
 
     let navigation = ui.global::<SlintNavigation>();
     navigation.on_goto(move |value| {
@@ -90,7 +116,9 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(next_index);
     });
 
+    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
     navigation.on_back(move || {
+
         let ui = ui_slint_navigation_back.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
         let current_index = nav.get_history_index();
@@ -103,6 +131,7 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(current_index - 1);
     });
 
+    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
     navigation.on_forward(move || {
         let ui = ui_slint_navigation_forward.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
@@ -116,9 +145,12 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(current_index + 1);
     });
 
+    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
 
     let slint_media_source = ui.global::<SlintMediaSource>();
     slint_media_source.on_filter({
+
+
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let ui_weak_find = ui.as_weak().clone();
@@ -147,7 +179,11 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
+
+
     slint_media_source.on_find({
+
+
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
             let ui_weak_find = ui.as_weak().clone();
@@ -178,6 +214,8 @@ fn main() -> Result<(), slint::PlatformError> {
             media_source_find_tx.send(cmd).ok();
         }
     });
+
+
 
 
 
@@ -347,6 +385,8 @@ fn main() -> Result<(), slint::PlatformError> {
 
     ui.run()
 }
+
+
 
 pub fn format_duration(duration: Duration) -> String {
     let millis = duration.as_millis();

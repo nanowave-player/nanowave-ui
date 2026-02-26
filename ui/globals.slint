@@ -3,7 +3,11 @@ export global SlintCallbacks {
     pure callback format_duration(duration) -> string;
 }
 */
-
+export struct SlintBatteryStatus {
+    percent: float,
+    charging: bool,
+    health: string,
+}
 
 export struct SlintMediaSourceChapter {
     name: string,
@@ -31,6 +35,24 @@ export struct SlintMediaSourceItem {
     has-thumbnail: bool,
     thumbnail: image,
     chapters: [SlintMediaSourceChapter]
+}
+
+
+
+export global SlintPreferences {
+
+    callback user_interaction();
+    callback sync();
+
+    in-out property <string> now: "";
+
+    in-out property <ColorScheme> color-scheme: ColorScheme.dark;
+    // in-out property <bool> fullscreen: false;
+    in-out property <float> brightness: 0.3;
+
+    in-out property <bool> enable-touch-events: true;
+    in-out property <bool> enable-gestures: true;
+    in-out property <bool> display-color-test: false;
 }
 
 export global SlintMediaSource {
@@ -89,20 +111,7 @@ export global SlintNavigation {
     callback forward();
 }
 
-export global SlintPreferences {
 
-    callback sync();
-
-    in-out property <string> now: "";
-
-    in-out property <ColorScheme> color-scheme: ColorScheme.dark;
-    // in-out property <bool> fullscreen: false;
-    in-out property <float> brightness: 0.3;
-
-    in-out property <bool> enable-touch-events: true;
-    in-out property <bool> enable-gestures: true;
-    in-out property <bool> display-color-test: false;
-}
 
 /*
 export global SlintFormatUtils {
@@ -111,11 +120,6 @@ export global SlintFormatUtils {
 }
 */
 
-export struct SlintBatteryStatus {
-    percent: float,
-    charging: bool,
-    health: string,
-}
 
 export global SlintStatus {
     in-out property <SlintBatteryStatus> battery;
