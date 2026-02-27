@@ -16,7 +16,11 @@ pub struct DisplayAutoShutdownTask {
     display_tx: UnboundedSender<DisplayCommand>
 }
 
+
 impl DisplayAutoShutdownTask {
+    pub fn id() -> String {
+        type_name::<Self>().to_string()
+    }
     pub fn new(display_tx: UnboundedSender<DisplayCommand>) -> Self {
         Self {
             last_reset: SystemTime::now(),
@@ -28,8 +32,8 @@ impl DisplayAutoShutdownTask {
 
 
 impl SchedulerTaskTrait for DisplayAutoShutdownTask {
-    fn id(&self) -> &str {
-        type_name::<Self>() // my_module::MyStruct
+    fn id(&self) -> String {
+        Self::id() // my_module::MyStruct
     }
 
     fn task_type(&self) -> SchedulerTaskType {

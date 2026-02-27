@@ -1,10 +1,10 @@
 slint::include_modules!();
 
-use std::any::type_name;
 use crate::background::battery_gauge::StatusEvent;
 use crate::background::input_handler::PreferencesCommand;
 use crate::background::media_source::{FilterCommand, FindCommand, MediaSourceCommand};
 use crate::background::player::{PlayerCommand, PlayerEvent};
+use crate::background::scheduler::scheduler::SchedulerEvent;
 use crate::config::Config;
 use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
@@ -15,9 +15,7 @@ use std::iter;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::UnboundedSender;
-use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
-use crate::background::scheduler::scheduler::SchedulerEvent;
+
 
 mod background;
 mod database_wrapper;
@@ -38,22 +36,22 @@ fn main() -> Result<(), slint::PlatformError> {
     let (prefs_cmd_tx, mut prefs_cmd_rx) = mpsc::unbounded_channel::<PreferencesCommand>();
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
     let (status_evt_tx, mut status_evt_rx) = mpsc::unbounded_channel::<StatusEvent>();
-    let (scheduler_evt_tx, mut scheduler_evt_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
+    let (scheduler_evt_tx, scheduler_evt_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
 
 
     let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
     let media_source_filter_tx = media_source_tx.clone();
     let media_source_find_tx = media_source_tx.clone();
 
-
-    let scheduler_evt_tx_arc = Arc::new(scheduler_evt_tx.clone());
     /*
-    let scheduler_evt_tx_nav_goto = scheduler_evt_tx_arc.clone();
-    let scheduler_evt_tx_nav_back = scheduler_evt_tx_arc.clone();
-    let scheduler_evt_tx_nav_forward = scheduler_evt_tx_arc.clone();
-    let scheduler_evt_tx_source_filter = scheduler_evt_tx_arc.clone();
-    let scheduler_evt_tx_source_find = scheduler_evt_tx_arc.clone();;
-    */
+        let scheduler_evt_tx_arc = Arc::new(scheduler_evt_tx.clone());
+
+        let scheduler_evt_tx_nav_goto = scheduler_evt_tx_arc.clone();
+        let scheduler_evt_tx_nav_back = scheduler_evt_tx_arc.clone();
+        let scheduler_evt_tx_nav_forward = scheduler_evt_tx_arc.clone();
+        let scheduler_evt_tx_source_filter = scheduler_evt_tx_arc.clone();
+        let scheduler_evt_tx_source_find = scheduler_evt_tx_arc.clone();;
+        */
 
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
@@ -64,10 +62,45 @@ fn main() -> Result<(), slint::PlatformError> {
                                  navigation_evt_tx.clone(),
                                  prefs_cmd_tx.clone(),
                                  status_evt_tx.clone(),
+                                 scheduler_evt_tx,
                                  scheduler_evt_rx
     );
 
 
+
+
+    // slint::set_platform(Box::new(linuxkms_backend));
+
+    /*
+    let x = BackendSelector::new()
+        .select();
+    let y = BackendSelector::new().
+
+     */
+    /*
+    let platform = slint::platform::set_platform(Box::new(
+
+
+
+    ));
+    if let Ok(linuxkms_backend) = linuxkms_backend_result {
+        platform::set_platform(linuxkms_backend);
+
+    }
+    */
+
+
+    /*
+    // /dev/input/event1
+    let linuxkms_backend_result = i_slint_backend_linuxkms::BackendBuilder::default().with_libinput_event_hook(Box::new(move |e| -> bool {
+        println!("input hook");
+        false
+    })).build();
+    if let Ok(linuxkms_backend) = linuxkms_backend_result {
+        // platform::set_platform(linuxkms_backend);
+
+    }
+    */
 
     let ui = MainWindow::new()?;
     let ui_weak = ui.as_weak();
@@ -79,6 +112,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
 
+    /*
     let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
 
     let slint_preferences = ui.global::<SlintPreferences>();
@@ -86,7 +120,7 @@ fn main() -> Result<(), slint::PlatformError> {
         println!("user interaction detected: sending timer reset");
         let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(type_name::<DisplayAutoShutdownTask>().to_string()));
     });
-
+    */
 
 
     let navigation = ui.global::<SlintNavigation>();
@@ -116,7 +150,7 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(next_index);
     });
 
-    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
+    // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
     navigation.on_back(move || {
 
         let ui = ui_slint_navigation_back.upgrade().unwrap();
@@ -131,7 +165,7 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(current_index - 1);
     });
 
-    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
+    // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
     navigation.on_forward(move || {
         let ui = ui_slint_navigation_forward.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
@@ -145,7 +179,7 @@ fn main() -> Result<(), slint::PlatformError> {
         nav.set_history_index(current_index + 1);
     });
 
-    let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
+    // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
 
     let slint_media_source = ui.global::<SlintMediaSource>();
     slint_media_source.on_filter({
@@ -310,7 +344,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(ui) = ui_handle_status.upgrade() {
                 let inner = ui.global::<SlintStatus>();
                 match event {
-                    StatusEvent::UpdateBattery(percentage) => {
+                    StatusEvent::UpdateBattery(_percentage) => {
                         inner.set_battery(SlintBatteryStatus {
                             percent: 0.82,
                             charging: true,
@@ -361,7 +395,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
                     PlayerEvent::Stopped => {}
 
-                    PlayerEvent::Position(item_id, position) => {
+                    PlayerEvent::Position(_item_id, position) => {
                         // println!("item_id: {}, position: {:?}", item_id, position.clone());
                         // inner.set_current_item_id(item_id.to_shared_string());
 

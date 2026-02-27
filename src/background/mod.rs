@@ -24,6 +24,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::background::display_controller::{DisplayCommand, DisplayController};
 use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
 use crate::background::scheduler::scheduler::{Scheduler, SchedulerEvent};
+use crate::background::touch_handler::TouchHandler;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -43,7 +44,7 @@ pub(crate) mod input_handler;
 pub(crate) mod media_source;
 pub(crate) mod player;
 pub(crate) mod scheduler;
-
+mod touch_handler;
 
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
@@ -53,6 +54,7 @@ pub fn start_tokio_background_tasks(config: Config,
                                     navigation_evt_tx: UnboundedSender<NavigationEvent>,
                                     prefs_tx: UnboundedSender<PreferencesCommand>,
                                     status_tx: UnboundedSender<StatusEvent>,
+                                    scheduler_tx: UnboundedSender<SchedulerEvent>,
                                     scheduler_rx: UnboundedReceiver<SchedulerEvent>,
 
 ) {
@@ -67,6 +69,7 @@ pub fn start_tokio_background_tasks(config: Config,
             navigation_evt_tx,
             prefs_tx,
             status_tx,
+            scheduler_tx,
             scheduler_rx
         ));
     });
@@ -85,6 +88,7 @@ pub fn start_tokio_background_tasks(config: Config,
     */
 }
 
+
 pub async fn background_tasks(config: &Config,
                               media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                               player_tx: Arc<UnboundedSender<PlayerCommand>>,
@@ -93,6 +97,7 @@ pub async fn background_tasks(config: &Config,
                               navigation_evt_tx: UnboundedSender<NavigationEvent>,
                               prefs_tx: UnboundedSender<PreferencesCommand>,
                               status_tx: UnboundedSender<StatusEvent>,
+                              scheduler_tx: UnboundedSender<SchedulerEvent>,
                               scheduler_rx: UnboundedReceiver<SchedulerEvent>,
 
 ) {
@@ -220,6 +225,12 @@ pub async fn background_tasks(config: &Config,
         let _ = navigation_evt_tx.send(NavigationEvent::NavigateTo(vec!["details".into(), item_id.clone()]));
     }
 
+    let touch_task = tokio::spawn(async {
+        println!("=== touch_task");
+        let device_paths = vec!["/dev/input/event1", "/dev/input/event12"];
+        let _ = TouchHandler::new().run(device_paths, scheduler_tx).await;
+    });
+
 
     // start this at last pos because it is blocking, if there is no headset connected (todo: fix this)
     let headset_task = tokio::spawn(async {
@@ -227,6 +238,10 @@ pub async fn background_tasks(config: &Config,
         let device_paths = vec!["/dev/input/event2", "/dev/input/event13"];
         let _ = HeadsetHandler::new().run(device_paths, headset_tx).await;
     });
+
+
+
+
 
 
     let _ = tokio::join!(
@@ -240,6 +255,7 @@ pub async fn background_tasks(config: &Config,
         gpio_task,
         input_handler_task,
         battery_checker_task,
+        touch_task,
         headset_task,
         scheduler_task,
     );
