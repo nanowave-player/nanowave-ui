@@ -1,10 +1,9 @@
+use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
 use crate::background::scheduler::scheduler::SchedulerEvent;
-use evdev::{AbsoluteAxisCode, Device, KeyCode};
+use evdev::{AbsoluteAxisCode, Device};
 use std::path::Path;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
 
 pub struct TouchHandler {}
 
@@ -48,16 +47,16 @@ impl TouchHandler {
 
         loop {
             if let Some(device) = &mut device_option {
-                let mut send_events: Vec<SchedulerEvent> = vec![];
+                let send_events: Vec<SchedulerEvent> = vec![];
                 match device.fetch_events() {
                     Ok(events) => {
-                        for event in events {
+                        for _event in events {
                             // println!("touch event {:?}", event.destructure())
                             let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));
                             break;
                         }
                     }
-                    Err(e) => {
+                    Err(_e) => {
                         tokio::time::sleep(Duration::from_millis(10)).await;
                     }
                 }

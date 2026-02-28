@@ -15,7 +15,6 @@ use crate::config::Config;
 use crate::database_wrapper::DatabaseWrapper;
 use crate::input_event;
 use crate::navigation_event::NavigationEvent;
-use chrono::Timelike;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -131,7 +130,7 @@ pub async fn background_tasks(config: &Config,
     let display_tx_scheduler = display_tx.clone();
     let scheduler_task = tokio::spawn(async {
         let _ = Scheduler::new()
-            .add_task(Box::new(DisplayAutoShutdownTask::new(display_tx_scheduler)))
+            .add_task(Box::new(DisplayAutoShutdownTask::new(display_tx_scheduler, 60_000)))
             .run(scheduler_rx).await;
     });
 
@@ -139,8 +138,9 @@ pub async fn background_tasks(config: &Config,
         let _ = BatteryGauge::new().run(status_tx).await;
     });
 
+    let scheduler_tx_display = scheduler_tx.clone();
     let display_controller_task = tokio::spawn(async {
-        let _ = DisplayController::new().run(display_rx).await;
+        let _ = DisplayController::new().run(scheduler_tx_display, display_rx).await;
     });
 
 

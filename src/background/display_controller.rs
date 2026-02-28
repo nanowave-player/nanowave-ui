@@ -1,7 +1,8 @@
+use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
+use crate::background::scheduler::scheduler::SchedulerEvent;
 use std::time::Duration;
 use tokio::fs;
-use tokio::sync::mpsc::UnboundedReceiver;
-
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 const DISPLAY_ON_OFF_FILE: &str = "/sys/class/pwm/pwmchip8/pwm2/enable";
 
@@ -9,7 +10,7 @@ pub enum DisplayCommand {
     TurnOn,
     TurnOff,
     Toggle,
-    ChangeBrightness(f32)
+    ChangeBrightness(f32),
 }
 
 pub struct DisplayController {}
@@ -21,14 +22,20 @@ impl DisplayController {
 
     pub async fn is_display_on(&self) -> bool {
         let contents_result = fs::read_to_string(DISPLAY_ON_OFF_FILE).await;
-        if let Ok(contents) = contents_result && contents.trim() == "0" {
+        if let Ok(contents) = contents_result
+            && contents.trim() == "0"
+        {
             false
         } else {
             true
         }
     }
-    
-    pub async fn run(&mut self, mut display_rx: UnboundedReceiver<DisplayCommand>) {
+
+    pub async fn run(
+        &mut self,
+        scheduler_evt_tx: UnboundedSender<SchedulerEvent>,
+        mut display_rx: UnboundedReceiver<DisplayCommand>,
+    ) {
         loop {
             while let Some(event) = display_rx.recv().await {
                 match event {
@@ -39,6 +46,7 @@ impl DisplayController {
                         println!("Change brightness to {}", brightness_perscent);
                     }
                 }
+                let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -53,5 +61,3 @@ impl DisplayController {
         self.switch_display(!self.is_display_on().await).await;
     }
 }
-
-

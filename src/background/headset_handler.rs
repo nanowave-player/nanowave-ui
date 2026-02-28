@@ -104,7 +104,7 @@ impl HeadsetHandler {
                      */
 
 
-                    Err(e) => {
+                    Err(_e) => {
                         /*
                         // ignore errors for now
                         if e.kind() == std::io::ErrorKind::WouldBlock {

@@ -31,11 +31,9 @@ impl Scheduler {
                 Some(event) = scheduler_rx.recv() => {
                     match event {
                         SchedulerEvent::Reset(task_id) => {
-                            println!("reset event received");
                             for task in tasks {
                                 if task.id() == task_id {
                                     task.reset();
-                                    println!("resetting task id {}", task_id);
                                 }
                             }
                         }

@@ -5,6 +5,7 @@ use crate::background::display_controller::DisplayCommand;
 use crate::background::scheduler::scheduler_task_trait::SchedulerTaskTrait;
 use crate::background::scheduler::scheduler_task_type::SchedulerTaskType;
 
+
 pub enum DisplayAutoShutdownTaskEvent {
     ResetTimer
 }
@@ -21,10 +22,10 @@ impl DisplayAutoShutdownTask {
     pub fn id() -> String {
         type_name::<Self>().to_string()
     }
-    pub fn new(display_tx: UnboundedSender<DisplayCommand>) -> Self {
+    pub fn new(display_tx: UnboundedSender<DisplayCommand>, auto_shutdown_after_ms:u64) -> Self {
         Self {
             last_reset: SystemTime::now(),
-            timeout: Duration::from_secs(10),
+            timeout: Duration::from_millis(auto_shutdown_after_ms),
             display_tx,
         }
     }

@@ -9,7 +9,6 @@ use crate::config::Config;
 use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
 use background::start_tokio_background_tasks;
-use rand::distributions::DistString;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::iter;
 use std::sync::Arc;

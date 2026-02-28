@@ -51,7 +51,7 @@ pub fn option_to_slint_cover(option: &Option<MediaSourcePicture>) -> (SharedStri
 
 pub fn load_cover_with_fallback(
     cover_path: &str,
-    media_type: &MediaType,
+    _media_type: &MediaType,
 ) -> (slint::Image, LoadCoverResult) {
     let cover_result = slint::Image::load_from_path(Path::new(cover_path));
 
