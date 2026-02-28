@@ -24,7 +24,6 @@ impl InputHandler {
 
     pub async fn run(
         &mut self,
-
         mut headset_rx: UnboundedReceiver<InputEvent>,
         player_tx: Arc<UnboundedSender<PlayerCommand>>,
         display_tx:  UnboundedSender<DisplayCommand>,
@@ -41,6 +40,9 @@ impl InputHandler {
 
 
         let player_tx_cancel_clone = player_tx.clone();
+        let player_tx_volume_clone = player_tx.clone();
+
+
 
         let debouncer = EventDebouncer::new(delay, move |_str: &str| {
             let mut clicks_lock = clicks_clone.lock().unwrap();
@@ -102,6 +104,16 @@ impl InputHandler {
                 match event {
                     InputEvent::ButtonEvent(_device, button, action) => {
                         match button {
+                            InputEventButton::VolumeIncrease => {
+                                if action == Release {
+                                    let _ = player_tx_volume_clone.send(PlayerCommand::IncreaseVolume);
+                                }
+                            }
+                            InputEventButton::VolumeDecrease => {
+                                if action == Release {
+                                    let _ = player_tx_volume_clone.send(PlayerCommand::DecreaseVolume);
+                                }
+                            }
                             InputEventButton::PlayPause => {
                                 let mut should_execute = true;
                                 let mut clicks_lock = clicks.lock().unwrap();

@@ -38,6 +38,9 @@ pub enum PlayerCommand {
     CancelOngoing(),
     SeekRelative(i64),
     SeekTo(Duration),
+    IncreaseVolume,
+    DecreaseVolume,
+    SetVolume(f32),
 }
 
 #[derive(Debug)]
@@ -304,6 +307,51 @@ impl Player {
     // todo:
     // next, previous, set_volume, set_speed
 
+
+    /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
+    pub fn set_volume_percent(&self, sink: &Sink, ui_percent: f32) {
+        let max_gain = 1.5f32;
+        
+        let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
+
+        // Map 0-100% to -80dB → 0dB linearly
+        let db = ui_normalized * 80.0 - 80.0;  // 0%=-80dB, 100%=0dB
+
+        // Convert dB to linear gain (rodio range)
+        let linear_gain = 10.0f32.powf(db / 20.0);  // -80dB=0.0, 0dB=1.0
+
+        // Scale to rodio max (1.5)
+        let final_gain = linear_gain * max_gain;
+
+        sink.set_volume(final_gain);
+    }
+
+    /// Reverse mapping: rodio gain → UI %
+    pub fn get_volume_percent(&self, sink: &Sink) -> f32 {
+        let max_gain = 1.5f32;
+
+        let current_gain = sink.volume();
+        let normalized_gain = current_gain / max_gain;  // 0.0-1.0
+
+        // dB from linear gain
+        let db = 20.0 * normalized_gain.log10();
+
+        // UI % from dB
+        let ui_normalized = (db + 80.0) / 80.0;
+        (ui_normalized * 100.0).clamp(0.0, 100.0)
+    }
+    
+    pub fn increase_volume(&self, sink: &Sink) {
+        let current = self.get_volume_percent(sink);
+        self.set_volume_percent(sink, current + 1f32);
+    }
+
+    pub fn decrease_volume(&self, sink: &Sink) {
+        let current = self.get_volume_percent(sink);
+        self.set_volume_percent(sink, current - 1f32);
+    }
+
+
     pub async fn run(
         &mut self,
         cmd_tx: Arc<UnboundedSender<PlayerCommand>>,
@@ -330,6 +378,7 @@ impl Player {
             }
 
             if let Some(sink) = &self.sink {
+                // sink.set_volume(0);
                 if self.session_key.is_expired() {
                     self.session_key = MediaSourceSessionKey::new();
                 } else if !sink.is_paused(){
@@ -468,7 +517,10 @@ impl Player {
                                         tokio::time::sleep(Duration::from_millis(800)).await;
                                     }
                                 })));
-                            }
+                            },
+                            PlayerCommand::IncreaseVolume => self.increase_volume(sink),
+                            PlayerCommand::DecreaseVolume => self.decrease_volume(sink),
+                            PlayerCommand::SetVolume(percent) => self.set_volume_percent(sink, percent),
                         }
                     }
 
