@@ -83,7 +83,7 @@ EOF
 
 ```
 
-## Build the software
+## Build and deploying nanowave player
 
 You need:
 - Linux
@@ -103,6 +103,12 @@ scp ./target/riscv64gc-unknown-linux-musl/release/nanowave-ui lichee2:/root/nano
 scp ./scripts/* lichee:/root/
 ```
 
+## Preparing media
+
+By default nanowave will look for a directory `./media` containing `./media/audiobooks` (`music` is not working atm).
+To provide some audio files, it is recommended to copy a valid audio book file to `/root/media/audiobooks/testing.m4b`
+so that nanowave can show and play some content.
+
 ## Running the player
 
 First you need to ssh into the LicheeRV:
@@ -121,7 +127,9 @@ After you are logged in you can do the following:
 /root/kill-audioplayer
 
 # enable autorun for audioplayer on boot
-cat <<EOF >> "/etc/rc.local"
+grep -q '/boot/audioplayer' /etc/rc.local || cat <<EOF >> "/etc/rc.local"
+
+# nanowave-ui autorun
 if [ -e /boot/audioplayer ]
 then
         /root/audioplayer

@@ -367,17 +367,26 @@ impl Player {
 
         let mut last_player_pos = Duration::from_secs(0);
 
+        let mut show_sink_message = true;
+
         loop {
             // polling in case the audio hardware has not been successfully initialized yet
-
             let now = SystemTime::now();
 
             if self.sink.is_none() && last_sink_update_attempt + Duration::from_millis(2000) < now {
                 self.connect_sink();
                 last_sink_update_attempt = now;
+                println!("sink not available, trying to connect");
+                show_sink_message = true;
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                continue;
             }
 
             if let Some(sink) = &self.sink {
+                if show_sink_message {
+                    println!("sink is connected");
+                    show_sink_message = false;
+                }
                 // sink.set_volume(0);
                 if self.session_key.is_expired() {
                     self.session_key = MediaSourceSessionKey::new();
