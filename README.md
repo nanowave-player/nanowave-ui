@@ -13,6 +13,8 @@ Feature overview<br>
 <img src="doc/assets/img/003_breadboard.jpg" width="200"><br>
 Development Breadboard<br>
 
+[![Audio playback demo](https://www.youtube.com/shorts/vRbHiqdaSFk)
+
 
 # Howto
 
