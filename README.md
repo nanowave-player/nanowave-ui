@@ -4,20 +4,14 @@ nanowave is planned as a DIY portable audio player developed in Rust. It is curr
 
 Here are some pictures, have fun...
 
-<p align="center">
-  <img src="doc/assets/img/001_case.jpg" width="200">
-  3D printed case
-</p>
+<img src="doc/assets/img/001_case.jpg" width="200"><br>
+3D printed case<br>
 
-<p align="center">
-  <img src="doc/assets/img/002_menu.jpg" width="200">
-  Feature overview
-</p>
+<img src="doc/assets/img/002_menu.jpg" width="200"><br>
+Feature overview<br>
 
-<p align="center">
-  <img src="doc/assets/img/003_breadboard.jpg" width="200">
-  Breadboard
-</p>
+<img src="doc/assets/img/003_breadboard.jpg" width="200"><br>
+Development Breadboard<br>
 
 
 # Howto
