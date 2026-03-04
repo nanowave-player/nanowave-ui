@@ -1,12 +1,23 @@
-# nanowave-ui
-NanoWave Player UI
+# nanowave
 
+nanowave is planned as a DIY portable audio player developed in Rust. It is currently a proof-of-concept learning project, that has no "release", but some demos, what it should look like.
 
-# Todo
-- [] Implement volume control (via headset buttons, display input and gpio buttons)
-- [] Read out battery percentage and display the value (every 60 or 120s)
-- [] Implement poweroff on long power hold
-- [] Evaluate Bluetooth / LDAC / aptX (see https://panther.kapsi.fi/posts/2018-11-17_linux_bluetooth_audio)
+Here are some pictures, have fun...
+
+<p align="center">
+  <img src="doc/assets/img/001_case.jpg" width="200">
+  3D printed case
+</p>
+
+<p align="center">
+  <img src="doc/assets/img/002_menu.jpg" width="200">
+  Feature overview
+</p>
+
+<p align="center">
+  <img src="doc/assets/img/003_breadboard.jpg" width="200">
+  Breadboard
+</p>
 
 
 # Howto
