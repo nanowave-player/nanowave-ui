@@ -88,11 +88,11 @@ async fn monitor_pin(pin: Pin, gpio_tx: Arc<UnboundedSender<InputEvent>>) -> Res
         let pin_num = pin.get_pin_num();
 
         let input_event_button = if pin_num == GpioPin::A22.to_u64() {
-            InputEventButton::VolumeDecrease
+            InputEventButton::Power
         } else if pin_num == GpioPin::A23.to_u64() {
             InputEventButton::PlayPause
         } else if pin_num == GpioPin::A24.to_u64() {
-            InputEventButton::Power
+            InputEventButton::VolumeDecrease
         } else if pin_num == GpioPin::A25.to_u64() {
             InputEventButton::VolumeIncrease
         } else {

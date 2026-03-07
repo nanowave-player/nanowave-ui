@@ -84,7 +84,7 @@ pub fn empty_cover_result() -> (slint::Image, LoadCoverResult) {
 
 pub fn rust_items_to_slint_model(
     rust_items: Vec<MediaSourceItem>,
-    details: bool,
+    load_cover: bool,
 ) -> ModelRc<SlintMediaSourceItem> {
     // Create VecModel directly
     let model = VecModel::<SlintMediaSourceItem>::from(
@@ -96,7 +96,7 @@ pub fn rust_items_to_slint_model(
                 let (thumbnail, thumbnail_type) =
                     load_cover_with_fallback(&thumbnail_path, &rust_item.media_type);
 
-                let (cover, cover_type) = if details {
+                let (cover, cover_type) = if load_cover {
                     load_cover_with_fallback(&cover_path, &rust_item.media_type)
                 } else {
                     empty_cover_result()

@@ -186,18 +186,18 @@ fn main() -> Result<(), slint::PlatformError> {
 
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
-            let ui_weak_find = ui.as_weak().clone();
+            let ui_weak_clone = ui.as_weak().clone();
             let cmd = MediaSourceCommand::Filter(FilterCommand {
                 query: query.to_string(),
                 callback: Box::new(|items| {
                     slint::invoke_from_event_loop(move || {
-                        let Some(ui) = ui_weak_find.upgrade() else {
+                        let Some(ui) = ui_weak_clone.upgrade() else {
                             return;
                         };
 
                         let media_source = ui.global::<SlintMediaSource>();
                         media_source.set_filter_results(
-                            slint_utils::rust_items_to_slint_model(items, true),
+                            rust_items_to_slint_model(items, false),
                         );
 
                         media_source.set_is_loading(false);
@@ -219,19 +219,19 @@ fn main() -> Result<(), slint::PlatformError> {
 
         let ui = ui_slint_media_source_find.upgrade().unwrap();
         move |id| {
-            let ui_weak_find = ui.as_weak().clone();
+            let ui_weak_clone = ui.as_weak().clone();
             let cmd = MediaSourceCommand::Find(FindCommand {
                 id: id.to_string(),
                 callback: Box::new(|item_option| {
                     slint::invoke_from_event_loop(move || {
-                        let Some(ui) = ui_weak_find.upgrade() else {
+                        let Some(ui) = ui_weak_clone.upgrade() else {
                             return;
                         };
 
                         let media_source = ui.global::<SlintMediaSource>();
                         if let Some(item) = item_option {
                             media_source.set_find_results(
-                                slint_utils::rust_items_to_slint_model(vec![item], true),
+                                rust_items_to_slint_model(vec![item], true),
                             );
                         } else {
                             media_source.set_find_results(ModelRc::default());
