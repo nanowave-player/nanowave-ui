@@ -35,3 +35,10 @@ media_source = { path = "../media_source/" } # use for local git (see cargo.toml
 
 [build-dependencies]
 slint-build = "1.15.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+strip = true

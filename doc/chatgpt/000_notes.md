@@ -1,0 +1,2 @@
+- Buildroot complains about missing defconfig for u-boot
+  - `/home/andreas/projects/sandreas/licheerv-nano-build/u-boot/configs`
