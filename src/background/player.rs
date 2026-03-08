@@ -1,10 +1,12 @@
 use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::{BufferSize, Device, StreamConfig};
+use cpal::Device;
 use media_source::media_source_chapter::MediaSourceChapter;
+use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
+use media_source::media_source_session_key::MediaSourceSessionKey;
 use mpsc::UnboundedReceiver;
 use rodio::source::SeekError;
-use rodio::{MixerDeviceSink, DeviceSinkBuilder, Source};
+use rodio::{DeviceSinkBuilder, MixerDeviceSink, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
@@ -12,14 +14,12 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use media_source::media_source_history_item::MediaSourceHistoryItem;
-use media_source::media_source_session_key::MediaSourceSessionKey;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-use crate::background::media_source::{MediaSource};
+use crate::background::media_source::MediaSource;
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -82,12 +82,26 @@ impl Player {
     }
 
     pub fn connect_sink(&mut self) {
+
+        /*
+&builder = DeviceSinkBuilder {
+    device: "Some(Default Audio Device)",
+    config: DeviceSinkConfig {
+        channel_count: 2,
+        sample_rate: 44100,
+        buffer_size: Default,
+        sample_format: F32,
+    },
+}
+         */
+
+
         let builder_option = Self::create_device_output_builder(
             self.preferred_device_name.clone(),
             self.fallback_device_name.clone(),
         );
-        if let Some(builder) = builder_option {
-            let stream = builder.open_sink_or_fallback().unwrap();
+        if let Some(builder) = builder_option && let Ok(stream) = builder.open_stream(){
+
             self.sink = Some(rodio::Player::connect_new(stream.mixer()));
             self.stream = Some(stream);
         }
@@ -130,11 +144,11 @@ impl Player {
             }
         };
 
+
+
         let builder: Option<DeviceSinkBuilder> = if device.is_some() {
-            let selected_device = device.unwrap();
-            let mut config: StreamConfig = selected_device.default_output_config().unwrap().into();
-            config.buffer_size = BufferSize::Fixed(4096);
-            let builder_result = DeviceSinkBuilder::from_device(selected_device).unwrap().with_config(&config);
+            let selected_device: cpal::Device = device.unwrap();
+            let builder_result = DeviceSinkBuilder::from_device(selected_device).unwrap();
             Some(builder_result)
         } else {
             None

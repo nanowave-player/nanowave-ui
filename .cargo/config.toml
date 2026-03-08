@@ -2,5 +2,13 @@
 slint = { git = "https://github.com/sandreas/slint.git", branch="reapply-color-fix"} # use for local git (see cargo.toml)
 slint-build = { git = "https://github.com/sandreas/slint.git", branch="reapply-color-fix" } # use for local git (see cargo.toml)
 i-slint-core = { git = "https://github.com/sandreas/slint.git", branch="reapply-color-fix" } # use for local git (see cargo.toml)
+
+cpal = { git = "file:///home/andreas/projects/sandreas/cpal" } # use for local git (see cargo.toml)
+rodio = { git = "file:///home/andreas/projects/sandreas/rodio" } # use for local git (see cargo.toml)
+
+# cpal = { git = "https://github.com/RustAudio/cpal", branch = "master"} # use for local git (see cargo.toml)
+# rodio = { git = "https://github.com/RustAudio/rodio", branch = "master"} # use for local git (see cargo.toml)
+
+
 # slint = { git = "https://github.com/slint-ui/slint" }
 # slint-build = { git = "https://github.com/slint-ui/slint" }
