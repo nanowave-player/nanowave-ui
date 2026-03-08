@@ -21,8 +21,8 @@ lofty = "0.23.2"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 mp4ameta = "0.13.0"
 image = "0.25.9"
-rodio = "0.22.1"
-cpal = "0.17.3"
+rodio = "0.21.1"
+cpal = "0.16.0"
 evdev = "0.13.2"
 debounce = "0.2.2"
 sysfs_gpio = { version = "0.6.2", features = ["async-tokio"] }
