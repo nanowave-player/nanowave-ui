@@ -1,5 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::Device;
+use cpal::{BufferSize, Device, StreamConfig};
 use media_source::media_source_chapter::MediaSourceChapter;
 use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
@@ -100,8 +100,10 @@ impl Player {
             self.preferred_device_name.clone(),
             self.fallback_device_name.clone(),
         );
+
         if let Some(builder) = builder_option && let Ok(stream) = builder.open_stream(){
 
+            println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
             self.sink = Some(rodio::Player::connect_new(stream.mixer()));
             self.stream = Some(stream);
         }
@@ -147,9 +149,20 @@ impl Player {
 
 
         let builder: Option<DeviceSinkBuilder> = if device.is_some() {
-            let selected_device: cpal::Device = device.unwrap();
+            let selected_device: Device = device.unwrap();
+            let mut config: StreamConfig = selected_device.default_output_config().unwrap().into();
+            config.buffer_size = BufferSize::Fixed(2048);
+
             let builder_result = DeviceSinkBuilder::from_device(selected_device).unwrap();
-            Some(builder_result)
+            /*
+            let config: StreamConfig = StreamConfig {
+                channels: 2,
+                sample_rate: 44100,
+                buffer_size: BufferSize::Fixed(2048),
+            };
+
+             */
+            Some(builder_result.with_config(&config))
         } else {
             None
         };
