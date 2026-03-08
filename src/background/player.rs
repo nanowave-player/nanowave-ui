@@ -1,10 +1,10 @@
 use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::Device;
+use cpal::{BufferSize, Device, StreamConfig};
 use media_source::media_source_chapter::MediaSourceChapter;
 use media_source::media_source_item::MediaSourceItem;
 use mpsc::UnboundedReceiver;
 use rodio::source::SeekError;
-use rodio::{OutputStream, OutputStreamBuilder, Sink, Source};
+use rodio::{MixerDeviceSink, DeviceSinkBuilder, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
@@ -56,14 +56,14 @@ pub struct Player {
     // media_source_tx: UnboundedSender<MediaSourceCommand>,
     preferred_device_name: String,
     fallback_device_name: String,
-    stream: Option<OutputStream>, // when removed, the samples do not play
-    sink: Option<Sink>,
+    stream: Option<MixerDeviceSink>, // when removed, the samples do not play
+    sink: Option<rodio::Player>,
     item: Option<MediaSourceItem>,
     session_key: MediaSourceSessionKey,
 }
 
 impl Player {
-    // sink:Option<Sink>, stream: Option<OutputStream>
+    // sink:Option<rodio::Player>, stream: Option<MixerDeviceSink>
     pub fn new(
         media_source: Arc<dyn MediaSource>,
         preferred_device_name: String,
@@ -87,8 +87,8 @@ impl Player {
             self.fallback_device_name.clone(),
         );
         if let Some(builder) = builder_option {
-            let stream = builder.open_stream_or_fallback().unwrap();
-            self.sink = Some(Sink::connect_new(stream.mixer()));
+            let stream = builder.open_sink_or_fallback().unwrap();
+            self.sink = Some(rodio::Player::connect_new(stream.mixer()));
             self.stream = Some(stream);
         }
     }
@@ -101,7 +101,7 @@ impl Player {
     fn create_device_output_builder(
         preferred_name: String,
         fallback_name: String,
-    ) -> Option<OutputStreamBuilder> {
+    ) -> Option<DeviceSinkBuilder> {
         let host = cpal::default_host();
         let devices = host.output_devices().unwrap();
 
@@ -130,10 +130,12 @@ impl Player {
             }
         };
 
-        let builder: Option<OutputStreamBuilder> = if device.is_some() {
+        let builder: Option<DeviceSinkBuilder> = if device.is_some() {
             let selected_device = device.unwrap();
-            let builder_result = OutputStreamBuilder::from_device(selected_device);
-            Some(builder_result.unwrap())
+            let mut config: StreamConfig = selected_device.default_output_config().unwrap().into();
+            config.buffer_size = BufferSize::Fixed(4096);
+            let builder_result = DeviceSinkBuilder::from_device(selected_device).unwrap().with_config(&config);
+            Some(builder_result)
         } else {
             None
         };
@@ -309,7 +311,7 @@ impl Player {
 
 
     /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
-    pub fn set_volume_percent(&self, sink: &Sink, ui_percent: f32) {
+    pub fn set_volume_percent(&self, sink: &rodio::Player, ui_percent: f32) {
         let max_gain = 1.5f32;
 
         let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
@@ -327,7 +329,7 @@ impl Player {
     }
 
     /// Reverse mapping: rodio gain → UI %
-    pub fn get_volume_percent(&self, sink: &Sink) -> f32 {
+    pub fn get_volume_percent(&self, sink: &rodio::Player) -> f32 {
         let max_gain = 1.5f32;
 
         let current_gain = sink.volume();
@@ -341,12 +343,12 @@ impl Player {
         (ui_normalized * 100.0).clamp(0.0, 100.0)
     }
 
-    pub fn increase_volume(&self, sink: &Sink) {
+    pub fn increase_volume(&self, sink: &rodio::Player) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current + 1f32);
     }
 
-    pub fn decrease_volume(&self, sink: &Sink) {
+    pub fn decrease_volume(&self, sink: &rodio::Player) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current - 1f32);
     }
@@ -581,7 +583,7 @@ impl Player {
         }
     }
     */
-    fn seek_relative(&self, sink: &Sink, millis: i64) {
+    fn seek_relative(&self, sink: &rodio::Player, millis: i64) {
         let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
         let _ = self.try_seek(Duration::from_millis(new_pos));
     }
