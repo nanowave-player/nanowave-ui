@@ -1,25 +1,28 @@
-use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::{BufferSize, Device, StreamConfig};
+use cpal::traits::HostTrait;
 use media_source::media_source_chapter::MediaSourceChapter;
 use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_session_key::MediaSourceSessionKey;
 use mpsc::UnboundedReceiver;
-use rodio::source::SeekError;
-use rodio::{DeviceSinkBuilder, MixerDeviceSink, Source};
 use std::cmp::max;
+
+use crate::background::media_source::MediaSource;
+use rodio_experiments::source::{SeekError, SineWave};
+use rodio_experiments::{DeviceSinkBuilder, FixedSource, Player as RodioPlayer, Source};
+use rodio_experiments::{cpal, Decoder, MixerDeviceSink};
 use std::fs::File;
 use std::io;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use rodio_experiments::cpal::{BufferSize, Device, StreamConfig};
+use rodio_experiments::cpal::traits::DeviceTrait;
+use rodio_experiments::speakers::{Output, SpeakersBuilder};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
-
-use crate::background::media_source::MediaSource;
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -57,13 +60,12 @@ pub struct Player {
     preferred_device_name: String,
     fallback_device_name: String,
     stream: Option<MixerDeviceSink>, // when removed, the samples do not play
-    sink: Option<rodio::Player>,
+    sink: Option<RodioPlayer>,
     item: Option<MediaSourceItem>,
     session_key: MediaSourceSessionKey,
 }
 
 impl Player {
-    // sink:Option<rodio::Player>, stream: Option<MixerDeviceSink>
     pub fn new(
         media_source: Arc<dyn MediaSource>,
         preferred_device_name: String,
@@ -83,28 +85,14 @@ impl Player {
 
     pub fn connect_sink(&mut self) {
 
-        /*
-&builder = DeviceSinkBuilder {
-    device: "Some(Default Audio Device)",
-    config: DeviceSinkConfig {
-        channel_count: 2,
-        sample_rate: 44100,
-        buffer_size: Default,
-        sample_format: F32,
-    },
-}
-         */
-
-
         let builder_option = Self::create_device_output_builder(
             self.preferred_device_name.clone(),
             self.fallback_device_name.clone(),
         );
 
         if let Some(builder) = builder_option && let Ok(stream) = builder.open_stream(){
-
             println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
-            self.sink = Some(rodio::Player::connect_new(stream.mixer()));
+            self.sink = Some(RodioPlayer::connect_new(stream.mixer()));
             self.stream = Some(stream);
         }
     }
@@ -176,7 +164,7 @@ impl Player {
             sink.clear();
             let waves = vec![230f32, 270f32, 330f32, 270f32, 230f32];
             for w in waves {
-                let source = rodio::source::SineWave::new(w).amplify(0.1);
+                let source = SineWave::new(w).amplify(0.1);
                 sink.append(source);
                 sink.play();
                 sleep(Duration::from_millis(200)).await;
@@ -232,7 +220,7 @@ impl Player {
         let file_result = File::open(path);
 
         if let Ok(file) = file_result {
-            let decoder_result = rodio::Decoder::try_from(file);
+            let decoder_result = Decoder::try_from(file);
             if let Some(sink) = &self.sink && let Ok(decoder) = decoder_result{
                 sink.clear();
                 sink.append(decoder);
@@ -338,7 +326,7 @@ impl Player {
 
 
     /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
-    pub fn set_volume_percent(&self, sink: &rodio::Player, ui_percent: f32) {
+    pub fn set_volume_percent(&self, sink: &RodioPlayer, ui_percent: f32) {
         let max_gain = 1.5f32;
 
         let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
@@ -356,7 +344,7 @@ impl Player {
     }
 
     /// Reverse mapping: rodio gain → UI %
-    pub fn get_volume_percent(&self, sink: &rodio::Player) -> f32 {
+    pub fn get_volume_percent(&self, sink: &RodioPlayer) -> f32 {
         let max_gain = 1.5f32;
 
         let current_gain = sink.volume();
@@ -370,12 +358,12 @@ impl Player {
         (ui_normalized * 100.0).clamp(0.0, 100.0)
     }
 
-    pub fn increase_volume(&self, sink: &rodio::Player) {
+    pub fn increase_volume(&self, sink: &RodioPlayer) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current + 1f32);
     }
 
-    pub fn decrease_volume(&self, sink: &rodio::Player) {
+    pub fn decrease_volume(&self, sink: &RodioPlayer) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current - 1f32);
     }
@@ -610,7 +598,7 @@ impl Player {
         }
     }
     */
-    fn seek_relative(&self, sink: &rodio::Player, millis: i64) {
+    fn seek_relative(&self, sink: &RodioPlayer, millis: i64) {
         let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
         let _ = self.try_seek(Duration::from_millis(new_pos));
     }
@@ -664,6 +652,4 @@ impl Player {
             }
         }
     }
-
-
 }

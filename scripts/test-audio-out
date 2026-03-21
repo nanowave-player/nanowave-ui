@@ -1,0 +1,5 @@
+#!/bin/sh
+
+aplay --device=hw:2,0 /root/sample-3s.wav
+
+# ./cpal-beep-example -d alsa:front:CARD=A,DEV=0
