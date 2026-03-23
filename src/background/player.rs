@@ -1,28 +1,26 @@
-use cpal::traits::HostTrait;
-use media_source::media_source_chapter::MediaSourceChapter;
-use media_source::media_source_history_item::MediaSourceHistoryItem;
-use media_source::media_source_item::MediaSourceItem;
-use media_source::media_source_session_key::MediaSourceSessionKey;
-use mpsc::UnboundedReceiver;
-use std::cmp::max;
 
-use crate::background::media_source::MediaSource;
-use rodio_experiments::source::{SeekError, SineWave};
-use rodio_experiments::{DeviceSinkBuilder, FixedSource, Player as RodioPlayer, Source};
-use rodio_experiments::{cpal, Decoder, MixerDeviceSink};
+use media_source::media_source_chapter::MediaSourceChapter;
+use media_source::media_source_item::MediaSourceItem;
+use mpsc::UnboundedReceiver;
+
+use std::cmp::max;
 use std::fs::File;
 use std::io;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use rodio_experiments::cpal::{BufferSize, Device, StreamConfig};
-use rodio_experiments::cpal::traits::DeviceTrait;
-use rodio_experiments::speakers::{Output, SpeakersBuilder};
+use media_source::media_source_history_item::MediaSourceHistoryItem;
+use media_source::media_source_session_key::MediaSourceSessionKey;
+use rodio_experiments::MixerDeviceSink;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+
+use rodio_experiments::Player as RodioPlayer;
+
+use crate::background::media_source::{MediaSource};
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -60,7 +58,7 @@ pub struct Player {
     preferred_device_name: String,
     fallback_device_name: String,
     stream: Option<MixerDeviceSink>, // when removed, the samples do not play
-    sink: Option<RodioPlayer>,
+    sink: Option<rodio::Player>,
     item: Option<MediaSourceItem>,
     session_key: MediaSourceSessionKey,
 }

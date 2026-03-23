@@ -18,3 +18,60 @@ devmem 0x03001054 b 0x03
 echo 505 > /sys/class/gpio/export
 
 cd /root/ && ./nanowave --base-directory="./media"
+
+function user_led_on() {
+  # devmem 0x03020000 32 0x04004000
+
+  val=$(devmem 0x03020000 32)  # read the current value
+  val=$(( val | (1 << 14) ))   # set bit 14
+  devmem 0x03020000 32 $val
+}
+
+function user_led_off() {
+  # devmem 0x03020000 32 0x04000000
+
+  val=$(devmem 0x03020000 32)           # read current value
+  val=$(( val & ~(1 << 14) ))           # clear bit 14
+  devmem 0x03020000 32 $val
+}
+
+function check_gpio() {
+
+  # working (A22)
+  devmem 0x03001050 b 0x03
+  echo 502 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio502/value
+
+  # working (A24)
+  devmem 0x03001060 b 0x03
+  echo 504 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio504/value
+
+  # working (ADC)
+  devmem 0x030010F8 b 0x03
+  echo 451 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio451/value
+
+
+
+
+  # always 1
+  devmem 0x03001044 b 0x03
+  echo 496 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio496/value
+
+  # always 1
+  devmem 0x03001040 b 0x03
+  echo 497 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio497/value
+
+
+
+  # busy
+  devmem 0x03001038 b 0x03
+  echo 494 > /sys/class/gpio/export
+  watch -n 1 -t cat /sys/class/gpio/gpio494/value
+
+
+
+}

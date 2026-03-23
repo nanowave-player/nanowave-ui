@@ -209,8 +209,8 @@ dependencies = [
  "bitflags 2.11.0",
  "cc",
  "cesu8",
- "jni",
- "jni-sys",
+ "jni 0.21.1",
+ "jni-sys 0.3.1",
  "libc",
  "log",
  "ndk",
@@ -674,12 +674,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "atomic_float"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "628d228f918ac3b82fe590352cc719d30664a0c13ca3a60266fe02c7132d480a"
-
-[[package]]
 name = "atspi"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -714,43 +708,6 @@ dependencies = [
  "atspi-common",
  "serde",
  "zbus",
-]
-
-[[package]]
-name = "audio-core"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93ebbf82d06013f4c41fe71303feb980cddd78496d904d06be627972de51a24"
-
-[[package]]
-name = "audioadapter"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e25c5bb54993ad4693d8b68b6f29f872c5fd9f92a6469d0acb0cbaf80a13d0f9"
-dependencies = [
- "audio-core",
- "num-traits",
-]
-
-[[package]]
-name = "audioadapter-buffers"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6af89882334c4e501faa08992888593ada468f9e1ab211635c32f9ada7786e0"
-dependencies = [
- "audioadapter",
- "audioadapter-sample",
- "num-traits",
-]
-
-[[package]]
-name = "audioadapter-sample"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e9a3d502fec0b21aa420febe0b110875cf8a7057c49e83a0cace1df6a73e03e"
-dependencies = [
- "audio-core",
- "num-traits",
 ]
 
 [[package]]
@@ -1287,7 +1244,7 @@ dependencies = [
 [[package]]
 name = "const-field-offset"
 version = "0.1.5"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "const-field-offset-macro",
  "field-offset",
@@ -1296,7 +1253,7 @@ dependencies = [
 [[package]]
 name = "const-field-offset-macro"
 version = "0.1.5"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1443,12 +1400,41 @@ checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 [[package]]
 name = "cpal"
 version = "0.18.0"
-source = "git+file:///home/andreas/projects/sandreas/cpal?branch=master#9d43748efa4590bb9af33de71a1e8073dd6b0abb"
+source = "git+https://github.com/RustAudio/cpal.git?branch=master#45000c1bbde6008dd57cf2ee14ff6cf2b1e0fd61"
 dependencies = [
  "alsa",
  "coreaudio-rs",
  "dasp_sample",
- "jni",
+ "jni 0.21.1",
+ "js-sys",
+ "libc",
+ "mach2 0.5.0",
+ "ndk",
+ "ndk-context",
+ "num-derive",
+ "num-traits",
+ "objc2 0.6.4",
+ "objc2-audio-toolbox",
+ "objc2-avf-audio",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "cpal"
+version = "0.18.0"
+source = "git+https://github.com/RustAudio/cpal#45000c1bbde6008dd57cf2ee14ff6cf2b1e0fd61"
+dependencies = [
+ "alsa",
+ "coreaudio-rs",
+ "dasp_sample",
+ "jni 0.21.1",
  "js-sys",
  "libc",
  "mach2 0.5.0",
@@ -2708,12 +2694,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hound"
-version = "3.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
-
-[[package]]
 name = "htmlparser"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2722,7 +2702,7 @@ checksum = "48ce8546b993eaf241d69ded33b1be6d205dd9857ec879d9d18bd05d3676e144"
 [[package]]
 name = "i-slint-backend-linuxkms"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "bytemuck",
  "calloop 0.14.4",
@@ -2743,7 +2723,7 @@ dependencies = [
 [[package]]
 name = "i-slint-backend-qt"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "const-field-offset",
  "cpp",
@@ -2761,7 +2741,7 @@ dependencies = [
 [[package]]
 name = "i-slint-backend-selector"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "cfg-if",
  "i-slint-backend-linuxkms",
@@ -2776,7 +2756,7 @@ dependencies = [
 [[package]]
 name = "i-slint-backend-winit"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2813,6 +2793,7 @@ dependencies = [
  "vtable",
  "wasm-bindgen",
  "web-sys",
+ "webbrowser",
  "windows 0.62.2",
  "winit",
  "zbus",
@@ -2821,7 +2802,7 @@ dependencies = [
 [[package]]
 name = "i-slint-common"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "fontique",
  "htmlparser",
@@ -2833,12 +2814,13 @@ dependencies = [
 [[package]]
 name = "i-slint-compiler"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "annotate-snippets",
  "by_address",
  "derive_more",
  "i-slint-common",
+ "icu_normalizer",
  "image",
  "itertools 0.14.0",
  "linked_hash_set",
@@ -2856,13 +2838,14 @@ dependencies = [
  "strum",
  "swash",
  "typed-index-collections",
+ "unicode-segmentation",
  "url",
 ]
 
 [[package]]
 name = "i-slint-core"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "auto_enums",
  "bitflags 2.11.0",
@@ -2874,6 +2857,7 @@ dependencies = [
  "euclid",
  "i-slint-common",
  "i-slint-core-macros",
+ "icu_normalizer",
  "image",
  "lyon_algorithms",
  "lyon_extra",
@@ -2908,7 +2892,7 @@ dependencies = [
 [[package]]
 name = "i-slint-core-macros"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "quote",
  "serde_json",
@@ -2918,7 +2902,7 @@ dependencies = [
 [[package]]
 name = "i-slint-renderer-femtovg"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "cfg-if",
  "const-field-offset",
@@ -2939,7 +2923,7 @@ dependencies = [
 [[package]]
 name = "i-slint-renderer-skia"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "bytemuck",
  "cfg-if",
@@ -2975,7 +2959,7 @@ dependencies = [
 [[package]]
 name = "i-slint-renderer-software"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "bytemuck",
  "clru",
@@ -3319,7 +3303,7 @@ dependencies = [
  "cesu8",
  "cfg-if",
  "combine",
- "jni-sys",
+ "jni-sys 0.3.1",
  "log",
  "thiserror 1.0.69",
  "walkdir",
@@ -3327,10 +3311,62 @@ dependencies = [
 ]
 
 [[package]]
-name = "jni-sys"
-version = "0.3.0"
+name = "jni"
+version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+checksum = "5efd9a482cf3a427f00d6b35f14332adc7902ce91efb778580e180ff90fa3498"
+dependencies = [
+ "cfg-if",
+ "combine",
+ "jni-macros",
+ "jni-sys 0.4.1",
+ "log",
+ "simd_cesu8",
+ "thiserror 2.0.18",
+ "walkdir",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "jni-macros"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "simd_cesu8",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41a652e1f9b6e0275df1f15b32661cf0d4b78d4d87ddec5e0c3c20f097433258"
+dependencies = [
+ "jni-sys 0.4.1",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
+dependencies = [
+ "jni-sys-macros",
+]
+
+[[package]]
+name = "jni-sys-macros"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "jobserver"
@@ -3885,7 +3921,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "cpal",
+ "cpal 0.18.0 (git+https://github.com/RustAudio/cpal.git?branch=master)",
  "debounce",
  "evdev",
  "file-id",
@@ -3897,7 +3933,6 @@ dependencies = [
  "media_source",
  "mp4ameta",
  "rodio",
- "rodio-experiments",
  "sea-orm",
  "sea-orm-migration",
  "slint",
@@ -3928,7 +3963,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3f42e7bbe13d351b6bead8286a43aac9534b82bd3cc43e47037f012ebfd62d4"
 dependencies = [
  "bitflags 2.11.0",
- "jni-sys",
+ "jni-sys 0.3.1",
  "log",
  "ndk-sys",
  "num_enum",
@@ -3948,7 +3983,7 @@ version = "0.6.0+11769913"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
- "jni-sys",
+ "jni-sys 0.3.1",
 ]
 
 [[package]]
@@ -4933,15 +4968,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "primal-check"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc0d895b311e3af9902528fbb8f928688abbd95872819320517cc24ca6b2bd08"
-dependencies = [
- "num-integer",
-]
-
-[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5035,9 +5061,9 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.13.2"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14104c5a24d9bcf7eb2c24753e0f49fe14555d8bd565ea3d38e4b4303267259d"
+checksum = "7c3a14896dfa883796f1cb410461aef38810ea05f2b2c33c5aded3649095fdad"
 dependencies = [
  "bitflags 2.11.0",
  "getopts",
@@ -5316,15 +5342,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "realfft"
-version = "3.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f821338fddb99d089116342c46e9f1fbf3828dba077674613e734e01d6ea8677"
-dependencies = [
- "rustfft",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5447,33 +5464,15 @@ dependencies = [
 [[package]]
 name = "rodio"
 version = "0.22.2"
-source = "git+file:///home/andreas/projects/sandreas/rodio?branch=make-cpal-master-compatible#d1b8f90bf7138392159cddab3798690578a2a390"
+source = "git+https://github.com/RustAudio/rodio.git?branch=master#76f8ba7644189639b0e616dfc98f98753a23bb6a"
 dependencies = [
- "atomic_float",
- "cpal",
+ "cpal 0.18.0 (git+https://github.com/RustAudio/cpal)",
  "dasp_sample",
- "hound",
  "num-rational",
  "rand 0.10.0",
  "rand_distr",
  "rtrb",
  "symphonia",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "rodio-experiments"
-version = "0.1.0"
-source = "git+file:///home/andreas/projects/sandreas/rodio-experiments?branch=local-rodio#4dc71c16038a4ca0a8588f7ac89c8a4759c5ebbb"
-dependencies = [
- "audioadapter",
- "audioadapter-buffers",
- "dasp_sample",
- "itertools 0.14.0",
- "rand 0.10.0",
- "rand_distr",
- "rodio",
- "rubato",
  "thiserror 2.0.18",
 ]
 
@@ -5538,22 +5537,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7204ed6420f698836b76d4d5c2ec5dec7585fd5c3a788fd1cde855d1de598239"
 
 [[package]]
-name = "rubato"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90173154a8a14e6adb109ea641743bc95ec81c093d94e70c6763565f7108ebeb"
-dependencies = [
- "audioadapter",
- "audioadapter-buffers",
- "num-complex",
- "num-integer",
- "num-traits",
- "realfft",
- "visibility",
- "windowfunctions",
-]
-
-[[package]]
 name = "rust_decimal"
 version = "1.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5588,20 +5571,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
-]
-
-[[package]]
-name = "rustfft"
-version = "6.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21db5f9893e91f41798c88680037dba611ca6674703c1a18601b01a72c8adb89"
-dependencies = [
- "num-complex",
- "num-integer",
- "num-traits",
- "primal-check",
- "strength_reduce",
- "transpose",
 ]
 
 [[package]]
@@ -6041,6 +6010,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
+name = "simd_cesu8"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94f90157bb87cddf702797c5dadfa0be7d266cdf49e22da2fcaa32eff75b2c33"
+dependencies = [
+ "rustc_version",
+ "simdutf8",
+]
+
+[[package]]
 name = "simd_helpers"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6117,7 +6096,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "slint"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "const-field-offset",
  "i-slint-backend-qt",
@@ -6138,7 +6117,7 @@ dependencies = [
 [[package]]
 name = "slint-build"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "derive_more",
  "fontique",
@@ -6150,7 +6129,7 @@ dependencies = [
 [[package]]
 name = "slint-macros"
 version = "1.16.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "i-slint-compiler",
  "proc-macro2",
@@ -6573,12 +6552,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "strength_reduce"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe895eb47f22e2ddd4dabc02bce419d2e643c8e3b585c78158b349195bc24d82"
 
 [[package]]
 name = "strict-num"
@@ -7232,16 +7205,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "transpose"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ad61aed86bc3faea4300c7aee358b4c6d0c8d6ccc36524c96e4c92ccf26e77e"
-dependencies = [
- "num-integer",
- "strength_reduce",
-]
-
-[[package]]
 name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7471,20 +7434,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
-name = "visibility"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d674d135b4a8c1d7e813e2f8d1c9a58308aee4a680323066025e53132218bd91"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "vtable"
 version = "0.3.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "const-field-offset",
  "portable-atomic",
@@ -7495,7 +7447,7 @@ dependencies = [
 [[package]]
 name = "vtable-macro"
 version = "0.3.0"
-source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#d1500e457d2ffae1de82250962cbe187a3c7f7d5"
+source = "git+https://github.com/sandreas/slint.git?branch=reapply-color-fix#a31b3b9295373001453869ecbda1bd22a879e432"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7791,6 +7743,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "webbrowser"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe985f41e291eecef5e5c0770a18d28390addb03331c043964d9e916453d6f16"
+dependencies = [
+ "core-foundation 0.10.1",
+ "jni 0.22.4",
+ "log",
+ "ndk-context",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
+ "url",
+ "web-sys",
+]
+
+[[package]]
 name = "weezl"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7836,15 +7804,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "windowfunctions"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90628d739333b7c5d2ee0b70210b97b8cddc38440c682c96fd9e2c24c2db5f3a"
-dependencies = [
- "num-traits",
-]
 
 [[package]]
 name = "windows"
@@ -8957,9 +8916,9 @@ dependencies = [
 
 [[package]]
 name = "zune-jpeg"
-version = "0.5.13"
+version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec5f41c76397b7da451efd19915684f727d7e1d516384ca6bd0ec43ec94de23c"
+checksum = "0b7a1c0af6e5d8d1363f4994b7a091ccf963d8b694f7da5b0b9cceb82da2c0a6"
 dependencies = [
  "zune-core",
 ]

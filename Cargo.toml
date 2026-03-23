@@ -22,9 +22,10 @@ xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 mp4ameta = "0.13.0"
 image = "0.25.9"
 
-cpal = "0.18.0"
-rodio = { git = "file:///home/andreas/projects/sandreas/rodio", branch="make-cpal-master-compatible" }
-rodio-experiments = {git = "file:///home/andreas/projects/sandreas/rodio-experiments",  branch = "local-rodio" }
+
+rodio = { git = "https://github.com/RustAudio/rodio.git", branch="master" }
+cpal = { git = "https://github.com/RustAudio/cpal.git", branch="master" }
+
 
 evdev = "0.13.2"
 debounce = "0.2.2"
@@ -35,7 +36,6 @@ linux-embedded-hal = "0.4.1"
 
 [patch.crates-io]
 media_source = { path = "../media_source/" } # use for local git (see cargo.toml)
-cpal = { git = "file:///home/andreas/projects/sandreas/cpal", branch="master" }
 
 [build-dependencies]
 slint-build = "1.15.0"
