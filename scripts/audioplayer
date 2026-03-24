@@ -17,4 +17,4 @@ echo 504 > /sys/class/gpio/export
 devmem 0x03001054 b 0x03
 echo 505 > /sys/class/gpio/export
 
-cd /root/ && ./nanowave --base-directory="./media"
+cd /root/ && NANOWAVE_AUDIO_DEVICE="plughw:CARD=2,DEV=0" ./nanowave --base-directory="./media"

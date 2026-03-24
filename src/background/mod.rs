@@ -1,7 +1,8 @@
-use crate::background::battery_gauge::{StatusEvent, BatteryGauge};
+use crate::background::battery_gauge::{BatteryGauge, StatusEvent};
 use crate::background::database_existence_checker::DatabaseExistenceChecker;
 use crate::background::database_updater::DatabaseUpdater;
 use crate::background::database_upsert_item::DatabaseUpsertItem;
+use crate::background::display_controller::{DisplayCommand, DisplayController};
 use crate::background::file_media_source::FileMediaSource;
 use crate::background::file_scanner::{extension_filter, FileScanner, FileScannerAction};
 use crate::background::gpio_handler::GpioHandler;
@@ -11,19 +12,18 @@ use crate::background::input_handler::{InputHandler, PreferencesCommand};
 use crate::background::media_source::{MediaSource, MediaSourceCommand};
 use crate::background::metadata_retriever::MetadataRetriever;
 use crate::background::player::{Player, PlayerCommand, PlayerEvent};
+use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
+use crate::background::scheduler::scheduler::{Scheduler, SchedulerEvent};
+use crate::background::touch_handler::TouchHandler;
 use crate::config::Config;
 use crate::database_wrapper::DatabaseWrapper;
 use crate::input_event;
 use crate::navigation_event::NavigationEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread;
+use std::{env, thread};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use crate::background::display_controller::{DisplayCommand, DisplayController};
-use crate::background::scheduler::display_auto_shudown_task::DisplayAutoShutdownTask;
-use crate::background::scheduler::scheduler::{Scheduler, SchedulerEvent};
-use crate::background::touch_handler::TouchHandler;
 
 mod file_scanner;
 mod database_existence_checker;
@@ -177,14 +177,27 @@ pub async fn background_tasks(config: &Config,
         println!("=== media_source_task");
         let _ = media_source.run(media_source_rx).await;
     });
-    
+
+
+
     let player_tx_player = player_tx.clone();
     let player_task = tokio::spawn(async {
         println!("=== player_task");
-        let preferred_device = "USB-C to 3.5mm Headphone Jack A".to_string();
-        let fallback_device = "pipewire".to_string();
 
-        let _ = Player::new(Arc::new(media_source_player), preferred_device, fallback_device).run(player_tx_player, player_rx, player_evt_tx).await;
+
+
+        let device_ids = match env::var("NANOWAVE_AUDIO_DEVICE") {
+            Ok(val) => vec![val],
+            Err(_e) => vec![],
+        };
+
+        if device_ids.is_empty() {
+            println!("NANOWAVE_AUDIO_DEVICE environment variable is not set, using default audio device");
+        } else {
+            println!("NANOWAVE_AUDIO_DEVICE={:?}", device_ids);
+        }
+
+        let _ = Player::new(Arc::new(media_source_player), device_ids).run(player_tx_player, player_rx, player_evt_tx).await;
     });
 
 

@@ -1,25 +1,27 @@
-use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::Device;
 use media_source::media_source_chapter::MediaSourceChapter;
+use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
+use media_source::media_source_session_key::MediaSourceSessionKey;
 use mpsc::UnboundedReceiver;
 use rodio::source::SeekError;
-use rodio::{OutputStream, OutputStreamBuilder, Sink, Source};
+use rodio::{cpal, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
 use std::ops::Deref;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use media_source::media_source_history_item::MediaSourceHistoryItem;
-use media_source::media_source_session_key::MediaSourceSessionKey;
+use cpal::{Device, DeviceId};
+use rodio::cpal::BufferSize;
+use rodio::cpal::traits::HostTrait;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-use crate::background::media_source::{MediaSource};
+use crate::background::media_source::MediaSource;
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -54,26 +56,23 @@ pub enum PlayerEvent {
 pub struct Player {
     media_source: Arc<dyn MediaSource>,
     // media_source_tx: UnboundedSender<MediaSourceCommand>,
-    preferred_device_name: String,
-    fallback_device_name: String,
-    stream: Option<OutputStream>, // when removed, the samples do not play
-    sink: Option<Sink>,
+    device_ids: Vec<String>,
+    stream: Option<MixerDeviceSink>, // when removed, the samples do not play
+    sink: Option<rodio::Player>,
     item: Option<MediaSourceItem>,
     session_key: MediaSourceSessionKey,
 }
 
 impl Player {
-    // sink:Option<Sink>, stream: Option<OutputStream>
+    // sink:Option<rodio::Player>, stream: Option<MixerDeviceSink>
     pub fn new(
         media_source: Arc<dyn MediaSource>,
-        preferred_device_name: String,
-        fallback_device_name: String,
+        device_ids: Vec<String>,
     ) -> Player {
         Self {
             media_source,
             // media_source_tx,
-            preferred_device_name,
-            fallback_device_name,
+            device_ids,
             stream: None,
             sink: None,
             item: None,
@@ -81,16 +80,138 @@ impl Player {
         }
     }
 
+
+    fn parse_device_ids_lossy(strings: Vec<String>) -> Vec<DeviceId> {
+        strings
+            .into_iter()
+            .filter_map(|s| DeviceId::from_str(&s).ok())
+            .collect()
+    }
+
+
     pub fn connect_sink(&mut self) {
-        let builder_option = Self::create_device_output_builder(
-            self.preferred_device_name.clone(),
-            self.fallback_device_name.clone(),
-        );
-        if let Some(builder) = builder_option {
-            let stream = builder.open_stream_or_fallback().unwrap();
-            self.sink = Some(Sink::connect_new(stream.mixer()));
-            self.stream = Some(stream);
+
+        /*
+&builder = DeviceSinkBuilder {
+    device: "Some(Default Audio Device)",
+    config: DeviceSinkConfig {
+        channel_count: 2,
+        sample_rate: 44100,
+        buffer_size: Default,
+        sample_format: F32,
+    },
+}
+         */
+
+        let host = cpal::default_host();
+
+        let device_id_strings = self.device_ids.to_vec();
+        let mut device_option = host.default_output_device();
+        let device_ids = Self::parse_device_ids_lossy(device_id_strings);
+        for device_id in device_ids {
+            print!("attempt get device by id: {}", device_id);
+            let dev = host.device_by_id(&device_id);
+            if dev.is_some() {
+                println!(" => success");
+
+                device_option = dev;
+                break;
+            } else {
+                println!(" => failed");
+            }
         }
+
+
+/*
+        let all_devices_result = host.output_devices();
+        let device_option = if let Ok(all_devices) = all_devices_result {
+
+
+            let mut tmp_dev: Option<Device> = None;
+            let self_device_ids = self.device_ids.clone();
+
+            for device in all_devices {
+                if let Ok(all_device_id) = device.id() {
+                    // let all_device_id = format!("{:?}", all_device_id_id.1);
+                    let device_ids = Self::parse_device_ids_lossy(self_device_ids);
+                    let mut found_device = false;
+                    for device_id in device_ids {
+                        println!("device:{} == preferred:{}", all_device_id, device_id);
+                        if all_device_id == device_id {
+                            found_device = true;
+                            break;
+                        }
+                    }
+                    if found_device {
+                        tmp_dev = Some(device);
+                        println!("found device: {}", all_device_id);
+                        break;
+                    } else {
+                        println!("ignore device: {}", all_device_id);
+                    }
+                }
+            }
+            tmp_dev
+        } else {
+            println!("no predefined audio device found, using default");
+            host.default_output_device()
+        };
+*/
+        /*
+        let mut device = host.default_output_device().expect("default device");
+
+
+        let all_devices_result = host.output_devices();
+        if let Ok(all_devices) = all_devices_result {
+            for device in all_devices {
+                let id_str = if let Ok(id) = device.id() {
+                    format!("{:?}", id)
+                } else {
+                    "- no id -".to_string()
+                };
+
+                let description = if let Ok(desc) = device.description() {
+                    desc.to_string()
+                } else {
+                    "- no description -".to_string()
+                };
+
+                println!("=> device - id: {}, desc: {}", id_str, description);
+            }
+        }
+
+        let default_device_id_string = format!("{:?}", device.id());
+        println!("default device: {:?}", default_device_id_string);
+        println!("chosen device (via ENV): {:?}", device_ids);
+
+        for device_id in &device_ids {
+            println!("device id {:?}", device_id);
+            if let Ok(id) = &device_id.parse() {
+                println!("  parsed {:?}", id);
+                if let Some(dev) = host.device_by_id(id) {
+                    println!("using audio device id {:?} ", id);
+                    device = dev;
+                    break;
+                } else {
+                    println!("  host has no device {:?}", id);
+                }
+            }
+        };
+        */
+        if let Some(device) = device_option {
+            if let Ok(builder) = DeviceSinkBuilder::from_device(device)
+                && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
+                println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
+
+                self.sink = Some(rodio::Player::connect_new(stream.mixer()));
+                self.stream = Some(stream);
+            } else {
+                println!("failed to open audio stream");
+            }
+        } else {
+            println!("failed to find audio device");
+        }
+
     }
 
     fn previous_delay(&self) -> Duration {
@@ -98,48 +219,7 @@ impl Player {
         Duration::from_secs(3)
     }
 
-    fn create_device_output_builder(
-        preferred_name: String,
-        fallback_name: String,
-    ) -> Option<OutputStreamBuilder> {
-        let host = cpal::default_host();
-        let devices = host.output_devices().unwrap();
 
-        let device: Option<Device> = {
-            let mut preferred_dev: Option<cpal::Device> = None;
-            let mut fallback_dev: Option<cpal::Device> = None;
-            let mut first_dev: Option<cpal::Device> = None;
-            for d in devices {
-                // println!("====={}", d.name().unwrap().to_string());
-                if d.name().unwrap() == preferred_name {
-                    preferred_dev = Some(d);
-                    break;
-                } else if d.name().unwrap() == fallback_name {
-                    fallback_dev = Some(d);
-                } else if first_dev.is_none() {
-                    first_dev = Some(d)
-                }
-            }
-
-            if preferred_dev.is_some() {
-                preferred_dev
-            } else if fallback_dev.is_some() {
-                fallback_dev
-            } else {
-                first_dev
-            }
-        };
-
-        let builder: Option<OutputStreamBuilder> = if device.is_some() {
-            let selected_device = device.unwrap();
-            let builder_result = OutputStreamBuilder::from_device(selected_device);
-            Some(builder_result.unwrap())
-        } else {
-            None
-        };
-
-        builder
-    }
 
     async fn play_test(&mut self) {
         if let Some(sink) = &self.sink {
@@ -309,7 +389,7 @@ impl Player {
 
 
     /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
-    pub fn set_volume_percent(&self, sink: &Sink, ui_percent: f32) {
+    pub fn set_volume_percent(&self, sink: &rodio::Player, ui_percent: f32) {
         let max_gain = 1.5f32;
 
         let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
@@ -327,7 +407,7 @@ impl Player {
     }
 
     /// Reverse mapping: rodio gain → UI %
-    pub fn get_volume_percent(&self, sink: &Sink) -> f32 {
+    pub fn get_volume_percent(&self, sink: &rodio::Player) -> f32 {
         let max_gain = 1.5f32;
 
         let current_gain = sink.volume();
@@ -341,14 +421,45 @@ impl Player {
         (ui_normalized * 100.0).clamp(0.0, 100.0)
     }
 
-    pub fn increase_volume(&self, sink: &Sink) {
+    pub fn increase_volume(&self, sink: &rodio::Player) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current + 1f32);
     }
 
-    pub fn decrease_volume(&self, sink: &Sink) {
+    pub fn decrease_volume(&self, sink: &rodio::Player) {
         let current = self.get_volume_percent(sink);
         self.set_volume_percent(sink, current - 1f32);
+    }
+
+    pub fn dump_audio_devices() {
+        let host = cpal::default_host();
+        let default_option = host.default_output_device();
+
+        let mut output = format!("====== Audio devices: ========");
+
+        output = format!("{}\nDefault:", output);
+
+        if let Some(default) = default_option && let Ok(default_id) = default.id() {
+            output = format!("{}\n- {}", output, default_id);
+        } else {
+            output = format!("{}\n- not found", output);
+        }
+
+        output = format!("{}\n\nOther Audio Devices:", output);
+
+        let all_devices_result = host.output_devices();
+        if let Ok(all_devices) = all_devices_result {
+            for device in all_devices {
+                if let Ok(all_device_id) = device.id() {
+                    output = format!("{}\n- {}", output, all_device_id);
+                }
+            }
+        } else {
+            output = format!("{}\n- no audio device found, using default", output);
+        };
+
+        println!("{}\n=================", output);
+
     }
 
 
@@ -358,8 +469,9 @@ impl Player {
         mut cmd_rx: UnboundedReceiver<PlayerCommand>,
         evt_tx: UnboundedSender<PlayerEvent>,
     ) {
-        let mut last_sink_update_attempt = SystemTime::now();
+        Self::dump_audio_devices();
 
+        let mut last_sink_update_attempt = SystemTime::now();
 
         let mut ongoing_option: Arc<Option<JoinHandle<_>>> = Arc::new(None);
 
@@ -581,7 +693,7 @@ impl Player {
         }
     }
     */
-    fn seek_relative(&self, sink: &Sink, millis: i64) {
+    fn seek_relative(&self, sink: &rodio::Player, millis: i64) {
         let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
         let _ = self.try_seek(Duration::from_millis(new_pos));
     }
