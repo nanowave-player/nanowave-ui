@@ -10,9 +10,16 @@ use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
 use background::start_tokio_background_tasks;
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
-use std::iter;
+use std::{env, iter};
+use std::fs::File;
+use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
+use std::thread::sleep;
 use std::time::Duration;
+use rodio::cpal::{BufferSize, DeviceId};
+use rodio::cpal::traits::HostTrait;
+use rodio::{DeviceSinkBuilder, DeviceTrait, Source};
 use tokio::sync::mpsc;
 
 
@@ -25,6 +32,7 @@ mod config;
 mod slint_utils;
 mod input_event;
 mod navigation_event;
+
 
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -52,6 +60,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let scheduler_evt_tx_source_find = scheduler_evt_tx_arc.clone();;
         */
 
+    // return playtest();
 
     start_tokio_background_tasks(Config::new(base_path.to_string()),
                                  media_source_rx,
@@ -428,4 +437,89 @@ pub fn format_duration(duration: Duration) -> String {
     let m = (secs / 60) % 60;
     let s = secs % 60;
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
+}
+
+fn playtest() -> Result<(), slint::PlatformError>{
+
+    let device_ids = match env::var("NANOWAVE_AUDIO_DEVICE") {
+        Ok(val) => vec![val],
+        Err(_e) => vec![],
+    };
+
+    let audio_file = match env::var("NANOWAVE_AUDIO_FILE") {
+        Ok(val) => val,
+        Err(_e) => "media/sample-3s.wav".to_string()
+    };
+
+    let host = rodio::cpal::default_host();
+
+    let device_id_strings = device_ids.to_vec();
+    let mut device_option = host.default_output_device();
+    let device_ids: Vec<DeviceId> = device_id_strings
+        .into_iter()
+        .filter_map(|s| DeviceId::from_str(&s).ok())
+        .collect();
+
+    for device_id in device_ids {
+        print!("attempt get device by id: {}", device_id);
+        let dev = host.device_by_id(&device_id);
+        if dev.is_some() {
+            println!(" => success");
+
+            device_option = dev;
+            break;
+        } else {
+            println!(" => failed");
+        }
+    }
+
+
+    print!("trying to connect audio device");
+    if let Some(device) = device_option {
+        println!(" => device {:?} is available", device.id());
+
+        if let Ok(builder) = DeviceSinkBuilder::from_device(device)
+            && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
+            println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
+
+            let sink = rodio::Player::connect_new(stream.mixer());
+
+            sink.clear();
+            let waves = vec![230f32, 270f32, 330f32, 270f32, 230f32];
+            for w in waves {
+                let source = rodio::source::SineWave::new(w).amplify(0.1);
+                sink.append(source);
+                sink.play();
+                sleep(Duration::from_millis(200));
+                sink.stop();
+                sink.clear();
+            }
+
+            let location = audio_file.as_str();
+
+            let path = Path::new(location);
+            let file_result = File::open(path);
+
+            if let Ok(file) = file_result {
+                let decoder_result = rodio::Decoder::try_from(file);
+                if let Ok(decoder) = decoder_result{
+                    sink.clear();
+                    sink.append(decoder);
+                    sink.play();
+                    sink.sleep_until_end();
+                } else {
+                    println!("error decoding");
+                }
+            } else {
+                println!("error file result");
+            }
+
+        } else {
+            println!("failed to open audio stream");
+        }
+    } else {
+        println!("failed to find audio device");
+    }
+
+    Ok(())
 }

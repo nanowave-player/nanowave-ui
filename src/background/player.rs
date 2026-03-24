@@ -89,7 +89,7 @@ impl Player {
     }
 
 
-    pub fn connect_sink(&mut self) {
+    pub fn connect_sink(&mut self) -> bool {
 
         /*
 &builder = DeviceSinkBuilder {
@@ -107,6 +107,8 @@ impl Player {
 
         let device_id_strings = self.device_ids.to_vec();
         let mut device_option = host.default_output_device();
+
+
         let device_ids = Self::parse_device_ids_lossy(device_id_strings);
         for device_id in device_ids {
             print!("attempt get device by id: {}", device_id);
@@ -198,20 +200,24 @@ impl Player {
             }
         };
         */
+        print!("trying to connect audio device");
         if let Some(device) = device_option {
+            println!(" => device {:?} is available", device.id());
+
             if let Ok(builder) = DeviceSinkBuilder::from_device(device)
                 && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
                 println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
 
                 self.sink = Some(rodio::Player::connect_new(stream.mixer()));
                 self.stream = Some(stream);
+                return true;
             } else {
                 println!("failed to open audio stream");
             }
         } else {
             println!("failed to find audio device");
         }
-
+        return false;
     }
 
     fn previous_delay(&self) -> Duration {
@@ -486,9 +492,15 @@ impl Player {
             let now = SystemTime::now();
 
             if self.sink.is_none() && last_sink_update_attempt + Duration::from_millis(2000) < now {
-                self.connect_sink();
-                last_sink_update_attempt = now;
                 println!("sink not available, trying to connect");
+
+
+                if self.connect_sink() {
+                    println!("sink connection successful");
+                } else {
+                    println!("sink connection failed");
+                }
+                last_sink_update_attempt = now;
                 show_sink_message = true;
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 continue;
