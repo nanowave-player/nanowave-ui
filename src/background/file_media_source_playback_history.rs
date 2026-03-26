@@ -19,7 +19,7 @@ impl FileMediaSourcePlaybackHistory {
             db,
         }
     }
-
+    
     pub async fn filter(&self, query: &str) -> Vec<entity::items_progress_history::ModelEx> {
         // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
         let db = self.db.clone();
@@ -153,7 +153,7 @@ impl FileMediaSourcePlaybackHistory {
     
 }
 
-
+/*
 fn min_date_time() -> DateTime<Utc> {
     Utc.with_ymd_and_hms(
         NaiveDate::MIN.year(),
@@ -162,7 +162,7 @@ fn min_date_time() -> DateTime<Utc> {
         0, 0, 0
     ).unwrap()
 }
-
+*/
 fn duration_to_naive_time(d: Duration) -> NaiveTime {
     // Wrap around at 24h if duration is longer than a day
     let secs = d.as_secs() % 86_400;

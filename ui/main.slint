@@ -21,91 +21,52 @@ import { Music } from "main/music.slint";
 import { Search } from "main/search.slint";
 import { Settings } from "main/settings.slint";
 import { Details } from "main/details.slint";
-
-
+import { Loading } from "_components/Loading.slint";
 export component MainWindow inherits Window {
-
-// todo: remove
-    in-out property<string> media_id;
-    in-out property<string> status;
-    callback play_requested(string);
-
     default-font-family: "Lato";
     default-font-size: 16pt;
 
-
-    in-out property <physical-length> swipe-area-width: 50px;
-
-    in-out property <physical-length> cur-pos: 0px;
-    in-out property <physical-length> pressed-pos: 0px;
-
-    callback touch_event();
-
-
-    // 368 x 552
     width: 368px;
     height: 552px;
 
     init => {
-        // load preferences
-        // restore route
         Palette.color-scheme = SlintPreferences.color-scheme;
-
     }
+
 
     SwipeGestureHandler {
         x: 0;
         y: 0;
-        width:368px;
-        height:552px;
-        handle-swipe-right: SlintPreferences.enable-gestures;
-        handle-swipe-left: SlintPreferences.enable-gestures;
+        width:root.width;
+        height:root.height;
+        handle-swipe-left: true;
+        handle-swipe-right: true;
         swiped => {
-            if (SlintPreferences.enable-gestures) {
-                if (self.current-position.x > self.pressed-position.x) {
-                    SlintNavigation.back()
-                } else if (self.current-position.x < self.pressed-position.x) {
-                    SlintNavigation.forward()
+            if (self.current-position.x > self.pressed-position.x) {
+                debug("swipe: back");
+                SlintNavigation.offset(-1)
+            } else if (self.current-position.x < self.pressed-position.x) {
+                debug("swipe: forward");
+                SlintNavigation.offset(1)
+            }
+        }
+
+        VerticalBox {
+            padding:0px;
+            Flickable {
+                VerticalLayout {
+                    if SlintNavigation.route[0] == "home": Home { }
+                    if SlintNavigation.route[0] == "audiobooks": Audiobooks { }
+                    if SlintNavigation.route[0] == "music": Music { }
+                    if SlintNavigation.route[0] == "settings": Settings { }
+                    if SlintNavigation.route[0] == "search": Search { }
+                    if SlintNavigation.route[0] == "details": Details {
+                        item-id: SlintNavigation.route[1];
+                    }
                 }
             }
         }
     }
 
-    Flickable {
-        interactive: false; // todo: does this work on the lichee??
-    /*
-        VerticalBox {
-            for i in 100: Text {
-                text: i;
 
-            }
-        }
-        */
-
-        VerticalBox {
-            padding:0px;
-            if SlintNavigation.route[0] == "home": Home { }
-            if SlintNavigation.route[0] == "audiobooks": Audiobooks { }
-            if SlintNavigation.route[0] == "music": Music { }
-            if SlintNavigation.route[0] == "settings": Settings { }
-            if SlintNavigation.route[0] == "search": Search { }
-            if SlintNavigation.route[0] == "details": Details {
-                item-id: SlintNavigation.route[1];
-            }
-        }
-
-
-    }
-
-    /*
-    if !SlintPreferences.enable-touch-events: TouchArea {
-        width: 100%;
-        height: 100%;
-        pointer-event(e) => {
-            SlintPreferences.user_interaction();
-            return EventResult.reject;
-            // return false;
-        }
-    }
-    */
 }

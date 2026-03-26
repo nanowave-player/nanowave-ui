@@ -50,7 +50,6 @@ export global SlintPreferences {
     // in-out property <bool> fullscreen: false;
     in-out property <float> brightness: 0.3;
 
-    in-out property <bool> enable-touch-events: true;
     in-out property <bool> enable-gestures: true;
     in-out property <bool> display-color-test: false;
 }
@@ -106,9 +105,8 @@ export global SlintNavigation {
     in-out property <int> history_index: 0;
     in-out property <[[string]]> history: [["home"]];
 
-    callback goto([string]);
-    callback back();
-    callback forward();
+    callback path([string]);
+    callback offset(int);
 }
 
 

@@ -1,0 +1,12 @@
+import { Spinner } from "std-widgets.slint";
+export component Loading inherits Rectangle {
+    in property <bool> loading;
+    in property <float> progress: 0;
+    if self.loading: Spinner {
+        indeterminate: progress == 0;
+    }
+    Flickable {
+        visible: !root.loading;
+        @children
+    }
+}

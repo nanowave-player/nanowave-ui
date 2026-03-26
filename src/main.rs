@@ -9,17 +9,13 @@ use crate::config::Config;
 use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
 use background::start_tokio_background_tasks;
+use rodio::cpal::traits::HostTrait;
+use rodio::{DeviceTrait, Source};
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
-use std::{env, iter};
-use std::fs::File;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::thread::sleep;
 use std::time::Duration;
-use rodio::cpal::{BufferSize, DeviceId};
-use rodio::cpal::traits::HostTrait;
-use rodio::{DeviceSinkBuilder, DeviceTrait, Source};
+use std::{env, iter};
 use tokio::sync::mpsc;
 
 
@@ -115,7 +111,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui_slint_navigation_goto = ui_weak.clone();
     let ui_slint_navigation_back = ui_weak.clone();
-    let ui_slint_navigation_forward = ui_weak.clone();
+    // let ui_slint_navigation_forward = ui_weak.clone();
 
     let ui_slint_media_source_filter = ui_weak.clone();
     let ui_slint_media_source_find = ui_weak.clone();
@@ -132,7 +128,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     let navigation = ui.global::<SlintNavigation>();
-    navigation.on_goto(move |value| {
+    navigation.on_path(move |value| {
         let ui = ui_slint_navigation_goto.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
         nav.set_route(value);
@@ -159,33 +155,20 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
-    navigation.on_back(move || {
+    navigation.on_offset(move |offset| {
 
         let ui = ui_slint_navigation_back.upgrade().unwrap();
         let nav = ui.global::<SlintNavigation>();
-        let current_index = nav.get_history_index();
-        let vec_index = current_index as usize;
+        let new_index = nav.get_history_index() + offset;
+        let new_index_usize = new_index as usize;
         let vec_of_history: Vec<ModelRc<SharedString>> = nav.get_history().iter().collect();
-        if current_index == 0 || vec_of_history.is_empty() {
-            return;
+
+        if vec_of_history.get(new_index_usize).is_some() {
+            nav.set_route(vec_of_history[new_index_usize].clone());
+            nav.set_history_index(new_index);
         }
-        nav.set_route(vec_of_history[vec_index - 1].clone());
-        nav.set_history_index(current_index - 1);
     });
 
-    // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
-    navigation.on_forward(move || {
-        let ui = ui_slint_navigation_forward.upgrade().unwrap();
-        let nav = ui.global::<SlintNavigation>();
-        let current_index = nav.get_history_index();
-        let vec_index = current_index as usize;
-        let vec_of_history: Vec<ModelRc<SharedString>> = nav.get_history().iter().collect();
-        if vec_of_history.len() < vec_index + 2 {
-            return;
-        }
-        nav.set_route(vec_of_history[vec_index + 1].clone());
-        nav.set_history_index(current_index + 1);
-    });
 
     // let scheduler_evt_tx = scheduler_evt_tx_arc.clone();
 
@@ -336,10 +319,13 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(ui) = ui_handle_prefs.upgrade() {
                 let inner = ui.global::<SlintPreferences>();
                 match event {
+
                     PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
                         println!("set_enable_touch_events: {}", enable_touch_events);
-                        inner.set_enable_touch_events(enable_touch_events);
+                        // inner.set_enable_touch_events(enable_touch_events);
                     }
+
+
                 }
 
             }
@@ -372,9 +358,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 let inner = ui.global::<SlintNavigation>();
                 match event {
                     NavigationEvent::NavigateTo(path) => {
-                        let my_vec : Vec<SharedString> = path.into_iter().map(Into::into).collect();
-                        let route = ModelRc::new(VecModel::from(my_vec));
-                        inner.invoke_goto(route);
+                        let new_path_vec: Vec<SharedString> = path.into_iter().map(Into::into).collect();
+                        let new_path = ModelRc::new(VecModel::from(new_path_vec));
+                        // todo this has been removed for debugging
+                        // inner.invoke_path(new_path);
                     }
                 }
 
@@ -438,7 +425,7 @@ pub fn format_duration(duration: Duration) -> String {
     let s = secs % 60;
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }
-
+/*
 fn playtest() -> Result<(), slint::PlatformError>{
 
     let device_ids = match env::var("NANOWAVE_AUDIO_DEVICE") {
@@ -523,3 +510,4 @@ fn playtest() -> Result<(), slint::PlatformError>{
 
     Ok(())
 }
+*/

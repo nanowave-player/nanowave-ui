@@ -6,9 +6,6 @@ use crate::background::scheduler::scheduler_task_trait::SchedulerTaskTrait;
 use crate::background::scheduler::scheduler_task_type::SchedulerTaskType;
 
 
-pub enum DisplayAutoShutdownTaskEvent {
-    ResetTimer
-}
 
 #[derive(Debug)]
 pub struct DisplayAutoShutdownTask {

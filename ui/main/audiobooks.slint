@@ -60,21 +60,28 @@ export component Audiobooks {
             background: red;
         }
 */
-            for item in SlintMediaSource.filter-results:
-                PiListItem {
-                    height:100px;
-                    tagline: "#" + item.part + " - " + item.series;
-                    title: item.name;
-                    description: item.artist;
-                    has-icon: item.has-thumbnail;
-                    icon: item.thumbnail;
-                    clicked => {
-                        // SlintAudioPlayer.play_media(item.id);
-                        SlintNavigation.goto(["details", item.id])
-                    }
+
+
+        Button {
+            text: "refresh";
+            clicked => {
+                    SlintMediaSource.filter("2");
+            }
+        }
+
+        for item in SlintMediaSource.filter-results:
+            PiListItem {
+                height:100px;
+                tagline: "#" + item.part + " - " + item.series;
+                title: item.name;
+                description: item.artist;
+                has-icon: item.has-thumbnail;
+                icon: item.thumbnail;
+                clicked => {
+                    // SlintAudioPlayer.play_media(item.id);
+                    SlintNavigation.path(["details", item.id])
                 }
-
-
+            }
         }
 
 

@@ -146,7 +146,7 @@ impl InputHandler {
                                     let _ = display_tx.send(DisplayCommand::Toggle);
                                 }
                             }
-                            _ => {}
+
                         }
                     }
                 }

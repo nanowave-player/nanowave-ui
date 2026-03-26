@@ -7,7 +7,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 const DISPLAY_ON_OFF_FILE: &str = "/sys/class/pwm/pwmchip8/pwm2/enable";
 
 pub enum DisplayCommand {
-    TurnOn,
+    // TurnOn,
     TurnOff,
     Toggle,
     ChangeBrightness(f32),
@@ -40,7 +40,7 @@ impl DisplayController {
             while let Some(event) = display_rx.recv().await {
                 match event {
                     DisplayCommand::TurnOff => self.switch_display(false).await,
-                    DisplayCommand::TurnOn => self.switch_display(true).await,
+                    // DisplayCommand::TurnOn => self.switch_display(true).await,
                     DisplayCommand::Toggle => self.toggle_display().await,
                     DisplayCommand::ChangeBrightness(brightness_perscent) => {
                         println!("Change brightness to {}", brightness_perscent);

@@ -39,7 +39,7 @@ impl FileMediaSource {
         }
     }
     pub async fn run(
-        mut self, // this needs to be mutable?
+        self, // does this need to be mutable?
         mut cmd_rx: UnboundedReceiver<MediaSourceCommand>,
     ) {
         while let Some(cmd) = cmd_rx.recv().await {
