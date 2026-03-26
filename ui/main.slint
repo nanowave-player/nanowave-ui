@@ -39,8 +39,8 @@ export component MainWindow inherits Window {
         y: 0;
         width:root.width;
         height:root.height;
-        handle-swipe-left: true;
-        handle-swipe-right: true;
+        handle-swipe-right: SlintPreferences.enable-gestures;
+        handle-swipe-left: SlintPreferences.enable-gestures;
         swiped => {
             if (self.current-position.x > self.pressed-position.x) {
                 debug("swipe: back");
