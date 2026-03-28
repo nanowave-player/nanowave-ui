@@ -11,11 +11,13 @@ use rodio::{cpal, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
+use std::num::{NonZeroU16, NonZeroU32};
 use std::ops::Deref;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use rodio::buffer::SamplesBuffer;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
@@ -227,19 +229,40 @@ impl Player {
 
 
 
+    fn sine_wave(
+        frequency: f32,
+        duration: Duration,
+        sample_rate: u32,
+    ) -> SamplesBuffer {
+        let sample_rate_nz = NonZeroU32::new(sample_rate).unwrap();
+        let channels = NonZeroU16::new(1).unwrap(); // mono
+
+        let sample_count = (duration.as_secs_f32() * sample_rate as f32) as usize;
+
+        let samples: Vec<f32> = (0..sample_count)
+            .map(|i| {
+                let t = i as f32 / sample_rate as f32;
+                (2.0 * std::f32::consts::PI * frequency * t).sin() * 0.2
+            })
+            .collect();
+
+        SamplesBuffer::new(channels, sample_rate_nz, samples)
+    }
+
     async fn play_test(&mut self) {
         if let Some(sink) = &self.sink {
             self.item = None;
             sink.clear();
+
             let waves = vec![230f32, 270f32, 330f32, 270f32, 230f32];
-            for w in waves {
-                let source = rodio::source::SineWave::new(w).amplify(0.1);
+            let duration = Duration::from_millis(200);
+            let sample_rate = 44_100;
+            for &freq in &waves {
+                let source = Self::sine_wave(freq, duration, sample_rate);
                 sink.append(source);
-                sink.play();
-                sleep(Duration::from_millis(200)).await;
-                sink.stop();
-                sink.clear();
             }
+
+            sink.play();
         }
     }
     /*

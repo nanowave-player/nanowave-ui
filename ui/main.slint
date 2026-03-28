@@ -22,6 +22,7 @@ import { Search } from "main/search.slint";
 import { Settings } from "main/settings.slint";
 import { Details } from "main/details.slint";
 import { Loading } from "_components/Loading.slint";
+
 export component MainWindow inherits Window {
     default-font-family: "Lato";
     default-font-size: 16pt;
@@ -41,18 +42,42 @@ export component MainWindow inherits Window {
         height:root.height;
         handle-swipe-right: SlintPreferences.enable-gestures;
         handle-swipe-left: SlintPreferences.enable-gestures;
+        handle-swipe-down: SlintPreferences.enable-gestures;
+        handle-swipe-up: SlintPreferences.enable-gestures;
         swiped => {
-            if (self.current-position.x > self.pressed-position.x) {
-                debug("swipe: back");
-                SlintNavigation.offset(-1)
-            } else if (self.current-position.x < self.pressed-position.x) {
-                debug("swipe: forward");
-                SlintNavigation.offset(1)
+            let xdiff = self.current-position.x - self.pressed-position.x;
+            let ydiff = self.current-position.y - self.pressed-position.y;
+            let is-horizontal-swipe = xdiff*xdiff > ydiff * ydiff;
+
+            if (is-horizontal-swipe) {
+                if (self.current-position.x > self.pressed-position.x) {
+                    // debug("swipe: back");
+                    SlintNavigation.offset(-1);
+                } else if (self.current-position.x < self.pressed-position.x) {
+                    // debug("swipe: forward");
+                    SlintNavigation.offset(1);
+                }
+            } else if(!is-horizontal-swipe) {
+                if (self.current-position.y > self.pressed-position.y) {
+                    // debug("swipe: down");
+                    SlintNavigation.path(["settings"]);
+                } else if (self.current-position.y < self.pressed-position.y) {
+                    // debug("swipe: up");
+                    let item-id = SlintAudioPlayer.current-item.id;
+                    if (item-id != "") {
+                        SlintNavigation.path(["details", item-id]);
+                    }
+                }
             }
+
+
         }
 
         VerticalBox {
             padding:0px;
+
+
+
             Flickable {
                 VerticalLayout {
                     if SlintNavigation.route[0] == "home": Home { }
@@ -65,8 +90,7 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+
         }
     }
-
-
 }

@@ -10,12 +10,16 @@ use crate::navigation_event::NavigationEvent;
 use crate::slint_utils::rust_items_to_slint_model;
 use background::start_tokio_background_tasks;
 use rodio::cpal::traits::HostTrait;
-use rodio::{DeviceTrait, Source};
+use rodio::{DeviceSinkBuilder, DeviceTrait, Source};
 use slint::{Model, ModelRc, SharedString, ToSharedString, VecModel};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{env, iter};
+use std::fs::File;
+use std::path::Path;
+use std::thread::sleep;
+use rodio::cpal::{BufferSize, DeviceId};
 use tokio::sync::mpsc;
 
 
@@ -32,19 +36,28 @@ mod navigation_event;
 
 
 fn main() -> Result<(), slint::PlatformError> {
-    let base_path = "media/";
+    //
+    // let _ = playtest();
+    let media_path = "media/";
+    let storage_path = ".nanowave/";
+
+
     let (media_source_tx, media_source_rx) = tokio::sync::mpsc::unbounded_channel::<background::media_source::MediaSourceCommand>();
     let (player_cmd_tx, player_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<background::player::PlayerCommand>();
     let (player_evt_tx, mut player_evt_rx) = mpsc::unbounded_channel::<PlayerEvent>();
+
+
+    let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
+    let media_source_filter_tx = media_source_tx.clone();
+    let media_source_find_tx = media_source_tx.clone();
+
+
     let (prefs_cmd_tx, mut prefs_cmd_rx) = mpsc::unbounded_channel::<PreferencesCommand>();
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
     let (status_evt_tx, mut status_evt_rx) = mpsc::unbounded_channel::<StatusEvent>();
     let (scheduler_evt_tx, scheduler_evt_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
 
 
-    let player_cmd_tx_shared = Arc::new(player_cmd_tx.clone());
-    let media_source_filter_tx = media_source_tx.clone();
-    let media_source_find_tx = media_source_tx.clone();
 
     /*
         let scheduler_evt_tx_arc = Arc::new(scheduler_evt_tx.clone());
@@ -58,7 +71,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // return playtest();
 
-    start_tokio_background_tasks(Config::new(base_path.to_string()),
+    start_tokio_background_tasks(Config::new(storage_path.into(), media_path.into()),
                                  media_source_rx,
                                  player_cmd_tx_shared,
                                  player_cmd_rx,
@@ -174,14 +187,15 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let slint_media_source = ui.global::<SlintMediaSource>();
     slint_media_source.on_filter({
-
-
+        println!("main.rs -> on_filter");
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let ui_weak_clone = ui.as_weak().clone();
             let cmd = MediaSourceCommand::Filter(FilterCommand {
                 query: query.to_string(),
                 callback: Box::new(|items| {
+                    println!("Filtercommand::callback is called");
+
                     slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak_clone.upgrade() else {
                             return;
@@ -201,6 +215,7 @@ fn main() -> Result<(), slint::PlatformError> {
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
             media_source_filter_tx.send(cmd).ok();
+            println!("main.rs -> on_filter end");
         }
     });
 
@@ -248,9 +263,12 @@ fn main() -> Result<(), slint::PlatformError> {
     slint_audio_player.on_play_test({
         let tx = player_cmd_tx.clone();
         move || {
+            println!("slint_audio_player.on_play_test before");
             tx.send(PlayerCommand::PlayTest()).unwrap();
+            println!("slint_audio_player.on_play_test after");
         }
     });
+
 
     slint_audio_player.on_play_media({
         let tx = player_cmd_tx.clone();
@@ -312,45 +330,46 @@ fn main() -> Result<(), slint::PlatformError> {
                 .unwrap();
         }
     });
+    /*
+        let ui_handle_prefs = ui.as_weak();
+        slint::spawn_local(async move {
+            while let Some(event) = prefs_cmd_rx.recv().await {
+                if let Some(ui) = ui_handle_prefs.upgrade() {
+                    // let inner = ui.global::<SlintPreferences>();
+                    match event {
 
-    let ui_handle_prefs = ui.as_weak();
-    slint::spawn_local(async move {
-        while let Some(event) = prefs_cmd_rx.recv().await {
-            if let Some(ui) = ui_handle_prefs.upgrade() {
-                let inner = ui.global::<SlintPreferences>();
-                match event {
+                        PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
+                            println!("set_enable_touch_events: {}", enable_touch_events);
+                            // inner.set_enable_touch_events(enable_touch_events);
+                        }
 
-                    PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
-                        println!("set_enable_touch_events: {}", enable_touch_events);
-                        // inner.set_enable_touch_events(enable_touch_events);
+
                     }
 
-
                 }
-
             }
-        }
-    }).unwrap();
+        }).unwrap();
 
-    let ui_handle_status = ui.as_weak();
-    slint::spawn_local(async move {
-        while let Some(event) = status_evt_rx.recv().await {
-            if let Some(ui) = ui_handle_status.upgrade() {
-                let inner = ui.global::<SlintStatus>();
-                match event {
-                    StatusEvent::UpdateBattery(_percentage) => {
-                        inner.set_battery(SlintBatteryStatus {
-                            percent: 0.82,
-                            charging: true,
-                            health: "Good".into(),
-                        });
+
+        let ui_handle_status = ui.as_weak();
+        slint::spawn_local(async move {
+            while let Some(event) = status_evt_rx.recv().await {
+                if let Some(ui) = ui_handle_status.upgrade() {
+                    let inner = ui.global::<SlintStatus>();
+                    match event {
+                        StatusEvent::UpdateBattery(_percentage) => {
+                            inner.set_battery(SlintBatteryStatus {
+                                percent: 0.82,
+                                charging: true,
+                                health: "Good".into(),
+                            });
+                        }
                     }
+
                 }
-
             }
-        }
-    }).unwrap();
-
+        }).unwrap();
+    */
     let ui_handle_navigation = ui.as_weak();
     slint::spawn_local(async move {
         while let Some(event) = navigation_evt_rx.recv().await {
@@ -361,7 +380,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         let new_path_vec: Vec<SharedString> = path.into_iter().map(Into::into).collect();
                         let new_path = ModelRc::new(VecModel::from(new_path_vec));
                         // todo this has been removed for debugging
-                        // inner.invoke_path(new_path);
+                        inner.invoke_path(new_path);
                     }
                 }
 
@@ -425,6 +444,7 @@ pub fn format_duration(duration: Duration) -> String {
     let s = secs % 60;
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }
+
 /*
 fn playtest() -> Result<(), slint::PlatformError>{
 

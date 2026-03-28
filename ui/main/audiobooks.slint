@@ -21,7 +21,9 @@ export component Audiobooks {
     // in-out property <[SlintMediaSourceItem]> items; // Accepts a model of strings
 
     init => {
+        debug("audiobooks init -> before SlintMediaSource.filter(2)");
         SlintMediaSource.filter("2");
+        debug("audiobooks init -> after SlintMediaSource.filter(2)")
     }
 
 
@@ -61,13 +63,6 @@ export component Audiobooks {
         }
 */
 
-
-        Button {
-            text: "refresh";
-            clicked => {
-                    SlintMediaSource.filter("2");
-            }
-        }
 
         for item in SlintMediaSource.filter-results:
             PiListItem {

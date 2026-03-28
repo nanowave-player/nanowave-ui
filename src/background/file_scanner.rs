@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use crate::config::Config;
 
 pub enum FileScannerAction {
     ScanFiles
@@ -8,15 +7,15 @@ pub enum FileScannerAction {
 
 
 pub struct FileScanner {
-    config: Config,
+    media_path: String,
     rx: tokio::sync::mpsc::Receiver<FileScannerAction>,
     tx: tokio::sync::mpsc::Sender<PathBuf>
 }
 
 impl FileScanner {
-    pub fn new(config:Config, rx: tokio::sync::mpsc::Receiver<FileScannerAction>, tx: tokio::sync::mpsc::Sender<PathBuf>) -> Self {
+    pub fn new(media_path:String, rx: tokio::sync::mpsc::Receiver<FileScannerAction>, tx: tokio::sync::mpsc::Sender<PathBuf>) -> Self {
         Self {
-            config,
+            media_path,
             rx,
             tx
         }
@@ -26,7 +25,7 @@ impl FileScanner {
     ) -> anyhow::Result<()> where
         F: Fn(&Path) -> bool + Send + Sync,{
 
-        let self_root = PathBuf::from(self.config.base_path.clone());
+        let self_root = PathBuf::from(self.media_path.clone());
         
         
         while let Some(action) = self.rx.recv().await {

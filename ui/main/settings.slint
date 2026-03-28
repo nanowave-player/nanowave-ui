@@ -51,26 +51,15 @@ export component Settings {
         }
 
         VerticalBox {
-            Switch {
-                horizontal-stretch: 0;
-                text: @tr("Display Color Test");
-                checked: SlintPreferences.display-color-test;
-                toggled => {
-                    SlintPreferences.display-color-test = self.checked;
-                    SlintPreferences.sync();
-                }
-            }
-        }
-
-        VerticalBox {
             Button {
                 text: "Play test audio";
                 clicked => {
+                    debug("SlintAudioPlayer.play_test() before");
                     SlintAudioPlayer.play_test();
+                    debug("SlintAudioPlayer.play_test() after");
                 }
 
             }
-
         }
 
 

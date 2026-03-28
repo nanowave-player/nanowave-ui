@@ -2,7 +2,6 @@ use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
 use sea_orm::prelude::async_trait;
 
-
 pub struct FilterCommand {
     pub query: String,
     pub callback: Box<dyn FnOnce(Vec<MediaSourceItem>) + Send>,

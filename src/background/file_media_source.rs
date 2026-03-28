@@ -1,6 +1,5 @@
 use crate::background::file_media_source_playback_history::FileMediaSourcePlaybackHistory;
 use crate::background::media_source::{MediaSource, MediaSourceCommand};
-use crate::config::Config;
 use crate::entity::item::ModelEx;
 use crate::entity::items_json_metadata::JsonTagField;
 use crate::entity::items_metadata::TagField;
@@ -8,32 +7,34 @@ use crate::entity::{item, items_json_metadata, items_metadata, items_progress_hi
 use chrono::NaiveTime;
 use chrono::Timelike;
 use media_source::media_source_chapter::MediaSourceChapter;
+use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_image_codec::MediaSourceImageCodec;
 use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_metadata::MediaSourceMetadata;
 use media_source::media_source_picture::MediaSourcePicture;
+use media_source::media_source_session_key::MediaSourceSessionKey;
 use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::sea_query::prelude::serde_json;
+use sea_orm::ColumnTrait;
 use sea_orm::DatabaseConnection;
 use sea_orm::QueryFilter;
-use sea_orm::ColumnTrait;
 use std::time::Duration;
-use media_source::media_source_history_item::MediaSourceHistoryItem;
-use media_source::media_source_session_key::MediaSourceSessionKey;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Clone)]
 pub struct FileMediaSource {
-    pub config: Config,
+    pub media_path: String,
+    pub cache_path: String,
     pub db: DatabaseConnection,
     playback_history: FileMediaSourcePlaybackHistory,
 }
 
 impl FileMediaSource {
 
-    pub fn new(config: Config, db: DatabaseConnection) -> Self{
+    pub fn new(media_path: String, cache_path: String, db: DatabaseConnection) -> Self{
         Self {
-            config,
+            media_path,
+            cache_path,
             db: db.clone(),
             playback_history: FileMediaSourcePlaybackHistory::new(db.clone())
         }
@@ -42,19 +43,27 @@ impl FileMediaSource {
         self, // does this need to be mutable?
         mut cmd_rx: UnboundedReceiver<MediaSourceCommand>,
     ) {
+        println!("FileMediaSource::run start");
         while let Some(cmd) = cmd_rx.recv().await {
+            println!("FileMediaSource: cmd received.");
             match cmd {
                 MediaSourceCommand::Filter(cmd) => {
+                    println!("MediaSourceCommand::Filter start");
+
                     let results: Vec<MediaSourceItem> = self.filter(&cmd.query).await;
                     (cmd.callback)(results);
+                    println!("MediaSourceCommand::Filter end");
+
                 }
 
                 MediaSourceCommand::Find(cmd) => {
+                    println!("MediaSourceCommand::Find start");
+
                     let result: Option<MediaSourceItem> = self.find(&cmd.id).await;
-
-
                     // todo: what about progress
                     (cmd.callback)(result);
+                    println!("MediaSourceCommand::Find end");
+
                 }
             }
         }
@@ -77,13 +86,13 @@ impl FileMediaSource {
 
     pub fn build_location_full_path(&self, location:String) -> String {
         // format!("{}/{}", self.base_path.clone().trim_end_matches('/'), i.location.trim_start_matches('/').to_string()),
-        format!("{}/{}", self.config.base_path.trim_end_matches('/'), location.trim_start_matches('/').to_string())
+        format!("{}/{}", self.media_path.trim_end_matches('/'), location.trim_start_matches('/').to_string())
     }
     pub fn map_db_model_to_media_item(&self, i: &ModelEx, position: Option<Duration>) -> MediaSourceItem {
 
 
 
-        let cache_path = self.config.cache_path.clone();
+        let cache_path = self.cache_path.clone();
         // let mut base_path = self.config.base_path.clone();
         let mut title : String = String::from("");
         let mut genre : Option<String> = None;

@@ -18,7 +18,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use xxhash_rust::xxh3::xxh3_64;
-use crate::config::Config;
 
 enum MetadataRetrieverError {
     Some
@@ -26,18 +25,21 @@ enum MetadataRetrieverError {
 
 
 pub struct MetadataRetriever {
-    config: Config,
+    media_path: String,
+    cache_path: String,
     rx: tokio::sync::mpsc::Receiver<DatabaseUpsertItem>,
     tx: tokio::sync::mpsc::Sender<DatabaseUpsertItem>,
 }
 
 impl MetadataRetriever {
     pub fn new(
-        config: Config,
+        media_path: String,
+        cache_path: String,
         rx: tokio::sync::mpsc::Receiver<DatabaseUpsertItem>,
         tx: tokio::sync::mpsc::Sender<DatabaseUpsertItem>, ) -> MetadataRetriever {
         MetadataRetriever {
-            config,
+            media_path,
+            cache_path,
             rx,
             tx,
         }
@@ -46,8 +48,8 @@ impl MetadataRetriever {
     pub async fn retrieve_metadata(
         &mut self
     ) -> anyhow::Result<()> {
-        let base_path = self.config.base_path.clone();
-        let cache_path = self.config.cache_path.clone();
+        let base_path = self.media_path.clone();
+        let cache_path = self.cache_path.clone();
         while let Some(upsert_item) = self.rx.recv().await {
 
             let file_clone = upsert_item.file.clone();
