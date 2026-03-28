@@ -7,7 +7,7 @@ use mpsc::UnboundedReceiver;
 use rodio::cpal::traits::HostTrait;
 use rodio::cpal::BufferSize;
 use rodio::source::SeekError;
-use rodio::{cpal, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Source};
+use rodio::{cpal, DeviceSinkBuilder, DeviceTrait, Float, MixerDeviceSink, Source};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
@@ -60,7 +60,7 @@ pub struct Player {
     // media_source_tx: UnboundedSender<MediaSourceCommand>,
     device_ids: Vec<String>,
     stream: Option<MixerDeviceSink>, // when removed, the samples do not play
-    sink: Option<rodio::Player>,
+    sink: Option<Arc<rodio::Player>>,
     item: Option<MediaSourceItem>,
     session_key: MediaSourceSessionKey,
 }
@@ -210,7 +210,7 @@ impl Player {
                 && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
                 println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
 
-                self.sink = Some(rodio::Player::connect_new(stream.mixer()));
+                self.sink = Some(Arc::new(rodio::Player::connect_new(stream.mixer())));
                 self.stream = Some(stream);
                 return true;
             } else {
@@ -349,11 +349,10 @@ impl Player {
     }
 
     fn try_seek(&self, position: Duration) -> Result<(), SeekError> {
-        if self.sink.is_none() {
-            return Ok(());
+        if let Some(sink) = self.sink.clone() {
+            return sink.try_seek(position)
         }
-        let sink = self.sink.as_ref().unwrap();
-        sink.try_seek(position)
+        Ok(())
     }
 
     fn chapters(&self) -> Vec<MediaSourceChapter> {
@@ -418,7 +417,7 @@ impl Player {
 
 
     /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
-    pub fn set_volume_percent(&self, sink: &rodio::Player, ui_percent: f32) {
+    pub fn calculate_volume_percent(&self, ui_percent: f32) -> Float {
         let max_gain = 1.5f32;
 
         let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
@@ -430,16 +429,15 @@ impl Player {
         let linear_gain = 10.0f32.powf(db / 20.0);  // -80dB=0.0, 0dB=1.0
 
         // Scale to rodio max (1.5)
-        let final_gain = linear_gain * max_gain;
+        linear_gain * max_gain
 
-        sink.set_volume(final_gain);
     }
 
     /// Reverse mapping: rodio gain → UI %
-    pub fn get_volume_percent(&self, sink: &rodio::Player) -> f32 {
+    pub fn get_volume_percent(&self, absolute_volume: Float) -> f32 {
         let max_gain = 1.5f32;
 
-        let current_gain = sink.volume();
+        let current_gain = absolute_volume;
         let normalized_gain = current_gain / max_gain;  // 0.0-1.0
 
         // dB from linear gain
@@ -450,14 +448,25 @@ impl Player {
         (ui_normalized * 100.0).clamp(0.0, 100.0)
     }
 
-    pub fn increase_volume(&self, sink: &rodio::Player) {
-        let current = self.get_volume_percent(sink);
-        self.set_volume_percent(sink, current + 1f32);
+    pub fn increase_volume(&mut self) {
+        if let Some(sink) = self.get_sink() {
+            let current = self.get_volume_percent(sink.volume());
+            sink.set_volume(self.calculate_volume_percent(current + 1f32));
+        }
+
     }
 
-    pub fn decrease_volume(&self, sink: &rodio::Player) {
-        let current = self.get_volume_percent(sink);
-        self.set_volume_percent(sink, current - 1f32);
+    pub fn decrease_volume(&mut self) {
+        if let Some(sink) = self.get_sink() {
+            let current = self.get_volume_percent(sink.volume());
+            sink.set_volume(self.calculate_volume_percent(current - 1f32));
+        }
+    }
+
+    pub fn set_volume(&mut self, percent: f32) {
+        if let Some(sink) = self.get_sink() {
+            sink.set_volume(percent);
+        }
     }
 
     pub fn dump_audio_devices() {
@@ -499,63 +508,15 @@ impl Player {
         evt_tx: UnboundedSender<PlayerEvent>,
     ) {
         Self::dump_audio_devices();
-
-        let mut last_sink_update_attempt = SystemTime::now();
-
         let mut ongoing_option: Arc<Option<JoinHandle<_>>> = Arc::new(None);
-
         let mut last_history_update = Arc::new(SystemTime::now());
-
         let mut last_player_pos = Duration::from_secs(0);
 
-        let mut show_sink_message = true;
 
         loop {
-            // polling in case the audio hardware has not been successfully initialized yet
-            let now = SystemTime::now();
-
-            if self.sink.is_none() && last_sink_update_attempt + Duration::from_millis(2000) < now {
-                println!("sink not available, trying to connect");
-
-
-                if self.connect_sink() {
-                    println!("sink connection successful");
-                } else {
-                    println!("sink connection failed");
-                }
-                last_sink_update_attempt = now;
-                show_sink_message = true;
-                tokio::time::sleep(Duration::from_millis(200)).await;
-                continue;
-            }
-
-            if let Some(sink) = &self.sink {
-                if show_sink_message {
-                    println!("sink is connected");
-                    show_sink_message = false;
-                }
-                // sink.set_volume(0);
-                if self.session_key.is_expired() {
-                    self.session_key = MediaSourceSessionKey::new();
-                } else if !sink.is_paused(){
-                    self.session_key.extend_validity();
-                }
 
 
                 tokio::select! {
-
-                    // this part makes the UI crash
-                    /*
-                    Some(btn_cmd) = button_cmd_rx.recv() => {
-                        match btn_cmd {
-                            PlayerCommand::HandleButton(key,action,timestamp) => {
-                                println!("===== handle button =====");
-                            }
-                            _ => {}
-                        }
-                    }
-
-                     */
 
                     Some(cmd) = cmd_rx.recv() => {
                         println!("============== cmd received ==============");
@@ -607,41 +568,14 @@ impl Player {
                                 break;
                             },
                             PlayerCommand::Next() => {
-                                let next_chapter = self.next_chapter();
-                                if next_chapter.is_some() {
-                                    let new_pos = next_chapter.unwrap().start;
-                                    self.try_seek(new_pos).unwrap();
-                                    self.update_position(&evt_tx, new_pos).await;
-                                } else {
-                                    sink.skip_one()
-                                }
+                                self.go_next(evt_tx.clone()).await;
                             }
                             PlayerCommand::Previous() => {
-                                let current_pos = sink.get_pos();
-                                if current_pos <= self.previous_delay() {
-                                    // todo: skip to previous playlist item
-                                    // return
-                                }
+                                self.go_previous(evt_tx.clone()).await;
 
-                                if let Some(current_chapter) = self.current_chapter()
-                                    && current_pos - current_chapter.start > self.previous_delay() {
-                                    self.try_seek(current_chapter.start).unwrap();
-                                    self.update_position(&evt_tx, current_chapter.start).await;
-
-                                } else if let Some(previous_chapter) = self.previous_chapter() {
-                                    self.try_seek(previous_chapter.start).unwrap();
-                                    self.update_position(&evt_tx, previous_chapter.start).await;
-
-                                } else {
-                                    let zero = Duration::from_secs(0);
-                                    self.try_seek(zero).unwrap();
-                                    self.update_position(&evt_tx, zero).await;
-                                }
                             }
                             PlayerCommand::SeekRelative(millis) => {
-                                // let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
-                                // let _ = self.try_seek(Duration::from_millis(new_pos));
-                                self.seek_relative(sink, millis);
+                                self.seek_relative(millis);
                             }
                             PlayerCommand::SeekTo(_) => {},
                             PlayerCommand::Toggle() => {
@@ -674,24 +608,26 @@ impl Player {
                                     }
                                 })));
                             },
-                            PlayerCommand::IncreaseVolume => self.increase_volume(sink),
-                            PlayerCommand::DecreaseVolume => self.decrease_volume(sink),
-                            PlayerCommand::SetVolume(percent) => self.set_volume_percent(sink, percent),
+                            PlayerCommand::IncreaseVolume => self.increase_volume(),
+                            PlayerCommand::DecreaseVolume => self.decrease_volume(),
+                            PlayerCommand::SetVolume(percent) => self.set_volume(percent),
                         }
                     }
 
                     _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                        let pos = sink.get_pos();
+                        if let Some(sink) = self.get_sink() {
+                            let pos = sink.get_pos();
 
-                        if pos != last_player_pos {
-                            self.update_position(&evt_tx, pos).await;
-                            last_player_pos = pos;
-                        }
+                            if pos != last_player_pos {
+                                self.update_position(&evt_tx, pos).await;
+                                last_player_pos = pos;
+                            }
 
 
-                        if !sink.is_paused() {
-                            if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
-                                last_history_update = Arc::new(last_update);
+                            if !sink.is_paused() {
+                                if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
+                                    last_history_update = Arc::new(last_update);
+                                }
                             }
                         }
                     }
@@ -701,6 +637,24 @@ impl Player {
 
             }
         }
+
+    pub async fn go_next(&mut self, evt_tx: UnboundedSender<PlayerEvent>) {
+
+        let next_chapter = self.next_chapter();
+        if next_chapter.is_some() {
+            let new_pos = next_chapter.unwrap().start;
+            self.try_seek(new_pos).unwrap();
+            self.update_position(&evt_tx, new_pos).await;
+        } else if let Some(sink) = self.get_sink() {
+            sink.skip_one()
+        }
+    }
+
+    fn get_sink(&mut self) -> Option<Arc<rodio::Player>> {
+        if self.sink.is_none() {
+            self.connect_sink();
+        }
+       self.sink.clone()
     }
 
     /*
@@ -728,9 +682,12 @@ impl Player {
         }
     }
     */
-    fn seek_relative(&self, sink: &rodio::Player, millis: i64) {
-        let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
-        let _ = self.try_seek(Duration::from_millis(new_pos));
+    fn seek_relative(&mut self, millis: i64) {
+        if let Some(sink) = self.get_sink() {
+            let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
+            let _ = self.try_seek(Duration::from_millis(new_pos));
+        }
+
     }
 
     async fn update_position(&self, evt_tx: &UnboundedSender<PlayerEvent>, pos: Duration) {
@@ -783,5 +740,30 @@ impl Player {
         }
     }
 
+    async fn go_previous(&mut self, evt_tx: UnboundedSender<PlayerEvent>) {
 
+        if let Some(sink) = self.get_sink() {
+            let current_pos = sink.get_pos();
+            if current_pos <= self.previous_delay() {
+                // todo: skip to previous playlist item
+                // return
+            }
+
+            if let Some(current_chapter) = self.current_chapter()
+                && current_pos - current_chapter.start > self.previous_delay() {
+                self.try_seek(current_chapter.start).unwrap();
+                self.update_position(&evt_tx, current_chapter.start).await;
+
+            } else if let Some(previous_chapter) = self.previous_chapter() {
+                self.try_seek(previous_chapter.start).unwrap();
+                self.update_position(&evt_tx, previous_chapter.start).await;
+
+            } else {
+                let zero = Duration::from_secs(0);
+                self.try_seek(zero).unwrap();
+                self.update_position(&evt_tx, zero).await;
+            }
+        }
+
+    }
 }
