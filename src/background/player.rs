@@ -250,7 +250,7 @@ impl Player {
     }
 
     async fn play_test(&mut self) {
-        if let Some(sink) = &self.sink {
+        if let Some(sink) = self.get_sink() {
             self.item = None;
             sink.clear();
 
@@ -263,6 +263,8 @@ impl Player {
             }
 
             sink.play();
+        } else {
+            println!("NO SINK!");
         }
     }
     /*
@@ -313,7 +315,7 @@ impl Player {
 
         if let Ok(file) = file_result {
             let decoder_result = rodio::Decoder::try_from(file);
-            if let Some(sink) = &self.sink && let Ok(decoder) = decoder_result{
+            if let Some(sink) = self.get_sink() && let Ok(decoder) = decoder_result{
                 sink.clear();
                 sink.append(decoder);
                 if position > zero_duration {
@@ -326,8 +328,8 @@ impl Player {
         false
     }
 
-    fn toggle(&self) {
-        if let Some(sink) = &self.sink {
+    fn toggle(&mut self) {
+        if let Some(sink) = self.get_sink() {
             if sink.is_paused() {
                 sink.play()
             } else {
@@ -336,20 +338,20 @@ impl Player {
         }
     }
 
-    fn play(&self) {
-        if let Some(sink) = &self.sink {
+    fn play(&mut self) {
+        if let Some(sink) = self.get_sink() {
             sink.play();
         }
     }
 
-    fn pause(&self) {
-        if let Some(sink) = &self.sink {
+    fn pause(&mut self) {
+        if let Some(sink) = self.get_sink() {
             sink.pause();
         }
     }
 
-    fn try_seek(&self, position: Duration) -> Result<(), SeekError> {
-        if let Some(sink) = self.sink.clone() {
+    fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
+        if let Some(sink) = self.get_sink() {
             return sink.try_seek(position)
         }
         Ok(())
@@ -364,8 +366,8 @@ impl Player {
         current_item.metadata.chapters
     }
 
-    fn next_chapter(&self) -> Option<MediaSourceChapter> {
-        if let Some(sink) = &self.sink {
+    fn next_chapter(&mut self) -> Option<MediaSourceChapter> {
+        if let Some(sink) = self.get_sink() {
             let current_pos = sink.get_pos();
             let chapters = self.chapters();
             for chapter in chapters {
@@ -377,8 +379,8 @@ impl Player {
         None
     }
 
-    fn current_chapter(&self) -> Option<MediaSourceChapter> {
-        if let Some(sink) = &self.sink {
+    fn current_chapter(&mut self) -> Option<MediaSourceChapter> {
+        if let Some(sink) = self.get_sink() {
             let current_pos = sink.get_pos();
             let chapters = self.chapters();
             if chapters.is_empty() {
@@ -393,8 +395,8 @@ impl Player {
         None
     }
 
-    fn previous_chapter(&self) -> Option<MediaSourceChapter> {
-        if let Some(sink) = &self.sink {
+    fn previous_chapter(&mut self) -> Option<MediaSourceChapter> {
+        if let Some(sink) = self.get_sink() {
             let current_pos = sink.get_pos();
             let chapters = self.chapters();
             if chapters.is_empty() {
@@ -516,7 +518,7 @@ impl Player {
         loop {
 
 
-                tokio::select! {
+            tokio::select! {
 
                     Some(cmd) = cmd_rx.recv() => {
                         println!("============== cmd received ==============");
@@ -635,8 +637,136 @@ impl Player {
 
 
 
+        }
+        // let evt_tx2 = evt_tx.clone();
+        /*
+        tokio::spawn(async {
+
+            let mut last_player_pos = Duration::from_secs(0);
+            let mut last_history_update = Arc::new(SystemTime::now());
+
+            if let Some(sink) = self.get_sink() {
+                let pos = sink.get_pos();
+
+                if pos != last_player_pos {
+                    self.update_position(&evt_tx2, pos).await;
+                    last_player_pos = pos;
+                }
+
+
+                if !sink.is_paused() {
+                    if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
+                        last_history_update = Arc::new(last_update);
+                    }
+                }
+            }
+        });
+        */
+        // let mut ongoing_option: Arc<Option<JoinHandle<_>>> = Arc::new(None);
+
+        /*
+        loop {
+            while let Some(cmd) = cmd_rx.recv().await {
+                println!("============== cmd received ==============");
+
+                let rewind_tx = cmd_tx.clone();
+                let fast_forward_tx = cmd_tx.clone();
+                match cmd {
+                    PlayerCommand::Update(s) => {
+                        let _ = self.play_media(s.clone()).await;
+                        // format!("Playing {}", x)
+                        // todo: implement player.is_playing / player.status
+
+                        self.update_playing_status(&evt_tx).await;
+                        /*
+                        if self.sink.is_paused() {
+                            let _ = evt_tx.send(PlayerEvent::Status("paused".to_string()));
+                        } else {
+                            let _ = evt_tx.send(PlayerEvent::Status("playing".to_string()));
+                        }
+
+                         */
+                    }
+                    PlayerCommand::PlayTest() => {
+                        println!("PlayTest received");
+                        self.play_test().await;
+                    }
+                    PlayerCommand::PlayMedia(s, position) => {
+                        let _ = self.load_media(s, position).await;
+                        let _ = self.play();
+                        self.update_playing_status(&evt_tx).await;
+                    }
+                    PlayerCommand::RestoreLastSession(media_source_history_item) => {
+                        let media_item_id = media_source_history_item.item.id.clone();
+                        let position = media_source_history_item.position;
+                        self.session_key = media_source_history_item.session_key.clone();
+
+                        let _ = self.load_media(media_item_id, position).await;
+                        self.update_playing_status(&evt_tx).await;
+                    }
+                    PlayerCommand::Play() => {
+                        self.play();
+                        self.update_playing_status(&evt_tx).await;
+                    }
+                    PlayerCommand::Pause() => {
+                        self.pause();
+                        self.update_playing_status(&evt_tx).await;
+                    }
+                    PlayerCommand::Stop() => {
+                        let _ = evt_tx.send(PlayerEvent::Stopped);
+                        break;
+                    },
+                    PlayerCommand::Next() => {
+                        self.go_next(evt_tx.clone()).await;
+                    }
+                    PlayerCommand::Previous() => {
+                        self.go_previous(evt_tx.clone()).await;
+
+                    }
+                    PlayerCommand::SeekRelative(millis) => {
+                        self.seek_relative(millis);
+                    }
+                    PlayerCommand::SeekTo(_) => {},
+                    PlayerCommand::Toggle() => {
+                        self.toggle();
+                        self.update_playing_status(&evt_tx).await;
+                    },
+                    PlayerCommand::CancelOngoing() => {
+                        let option = ongoing_option.deref();
+                        if let Some(ongoing) = option {
+                            ongoing.abort();
+                            ongoing_option = Arc::new(None);
+                        }
+                    },
+                    PlayerCommand::Rewind() => {
+                        ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                            loop {
+                                println!("rewind");
+                                // self.seek_relative(sink, -15000);
+                                rewind_tx.send(PlayerCommand::SeekRelative(-15000)).unwrap();
+                                tokio::time::sleep(Duration::from_millis(800)).await;
+                            }
+                        })));
+                    },
+                    PlayerCommand::FastForward() => {
+                        ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                            loop {
+                                println!("fast-forward");
+                                fast_forward_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
+                                tokio::time::sleep(Duration::from_millis(800)).await;
+                            }
+                        })));
+                    },
+                    PlayerCommand::IncreaseVolume => self.increase_volume(),
+                    PlayerCommand::DecreaseVolume => self.decrease_volume(),
+                    PlayerCommand::SetVolume(percent) => self.set_volume(percent),
+                }
             }
         }
+
+         */
+
+    }
 
     pub async fn go_next(&mut self, evt_tx: UnboundedSender<PlayerEvent>) {
 
@@ -715,8 +845,8 @@ impl Player {
         None
     }
 
-    async fn update_playing_status(&self, evt_tx: &UnboundedSender<PlayerEvent>) {
-        if let Some(sink) = &self.sink {
+    async fn update_playing_status(&mut self, evt_tx: &UnboundedSender<PlayerEvent>) {
+        if let Some(sink) = self.get_sink() {
             let self_item_opt = self.item.clone();
             if self_item_opt.is_none() {
                 return;

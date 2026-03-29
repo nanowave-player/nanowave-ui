@@ -37,6 +37,7 @@ mod navigation_event;
 
 fn main() -> Result<(), slint::PlatformError> {
     //
+
     // let _ = playtest();
     let media_path = "media/";
     let storage_path = ".nanowave/";
@@ -330,6 +331,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 .unwrap();
         }
     });
+
     /*
         let ui_handle_prefs = ui.as_weak();
         slint::spawn_local(async move {
@@ -388,6 +390,7 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     }).unwrap();
 
+
     let ui_handle_player = ui.as_weak();
     slint::spawn_local(async move {
 
@@ -445,7 +448,7 @@ pub fn format_duration(duration: Duration) -> String {
     format!("{:0>2}:{:0>2}:{:0>2}", h, m, s)
 }
 
-/*
+
 fn playtest() -> Result<(), slint::PlatformError>{
 
     let device_ids = match env::var("NANOWAVE_AUDIO_DEVICE") {
@@ -530,4 +533,3 @@ fn playtest() -> Result<(), slint::PlatformError>{
 
     Ok(())
 }
-*/
