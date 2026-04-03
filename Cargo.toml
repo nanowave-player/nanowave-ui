@@ -27,6 +27,7 @@ linux-embedded-hal = "0.4.1"
 media_source = { path = "../media_source/" }
 cpal = { path = "/home/andreas/projects/sandreas/cpal" }
 rodio = { path = "/home/andreas/projects/sandreas/rodio" }
+tracing-subscriber = "0.3.23"
 
 # rodio = { version = "0.22.2", features = ["experimental", "playback", "wav_output"] }
 # cpal = "0.18.0"

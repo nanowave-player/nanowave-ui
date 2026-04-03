@@ -21,7 +21,8 @@ use std::path::Path;
 use std::thread::sleep;
 use rodio::cpal::{BufferSize, DeviceId};
 use tokio::sync::mpsc;
-
+use tracing::Level;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 mod background;
 mod database_wrapper;
@@ -36,7 +37,10 @@ mod navigation_event;
 
 
 fn main() -> Result<(), slint::PlatformError> {
-    //
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .init();
 
     // let _ = playtest();
     let media_path = "media/";
