@@ -10,7 +10,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 walkdir = "2.5.0"
 sea-orm = { version = "2.0.0-rc.30", features = [ "sqlx-sqlite", "macros", "runtime-tokio", "debug-print", "with-chrono", "with-json" ] }
 sea-orm-migration = "2.0.0-rc.30"
-tracing = "0.1.44"
 chrono = "0.4.43"
 file-id = "0.2.3"
 lofty = "0.23.2"
@@ -20,14 +19,19 @@ image = "0.25.9"
 evdev = "0.13.2"
 debounce = "0.2.2"
 sysfs_gpio = { version = "0.6.2", features = ["async-tokio"] }
-futures = "0.3.31"
-max170xx = "1.0.0"
-linux-embedded-hal = "0.4.1"
+futures = "0.3"
+max170xx = "1.0"
+linux-embedded-hal = "0.4"
 
 media_source = { path = "../media_source/" }
 cpal = { path = "/home/andreas/projects/sandreas/cpal" }
 rodio = { path = "/home/andreas/projects/sandreas/rodio" }
-tracing-subscriber = "0.3.23"
+
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing-appender = "0.2"
+clap = { version = "4", features = ["derive"] }
 
 # rodio = { version = "0.22.2", features = ["experimental", "playback", "wav_output"] }
 # cpal = "0.18.0"

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::background::display_controller::DisplayCommand;
 use crate::background::player::PlayerCommand;
 use crate::input_event::InputEventAction::{Press, Release};
@@ -6,7 +7,7 @@ use debounce::EventDebouncer;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-
+use tracing::{debug, instrument};
 
 #[derive(Debug)]
 pub enum PreferencesCommand {
@@ -28,7 +29,7 @@ impl InputHandler {
         player_tx: Arc<UnboundedSender<PlayerCommand>>,
         display_tx:  UnboundedSender<DisplayCommand>,
     ) {
-        println!("INPUT_HANDLER run");
+        debug!("InputHandler run");
 
         let delay = Duration::from_millis(250);
 
@@ -106,12 +107,12 @@ impl InputHandler {
                         match button {
                             InputEventButton::VolumeIncrease => {
                                 if action == Release {
-                                    let _ = player_tx_volume_clone.send(PlayerCommand::IncreaseVolume);
+                                    let _voninc = player_tx_volume_clone.send(PlayerCommand::IncreaseVolume);
                                 }
                             }
                             InputEventButton::VolumeDecrease => {
                                 if action == Release {
-                                    let _ = player_tx_volume_clone.send(PlayerCommand::DecreaseVolume);
+                                    let _voldec = player_tx_volume_clone.send(PlayerCommand::DecreaseVolume);
                                 }
                             }
                             InputEventButton::PlayPause => {
@@ -142,8 +143,8 @@ impl InputHandler {
                             },
                             InputEventButton::Power => {
                                 if action == Release {
-                                    println!("Power button released");
-                                    let _ = display_tx.send(DisplayCommand::Toggle);
+                                    debug!("Power button released");
+                                    let _disp = display_tx.send(DisplayCommand::Toggle);
                                 }
                             }
 
@@ -155,3 +156,13 @@ impl InputHandler {
     }
 
 }
+
+// todo
+/*
+impl Debug for InputHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InputHandler")
+    }
+}
+
+ */

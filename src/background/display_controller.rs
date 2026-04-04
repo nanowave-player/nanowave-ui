@@ -46,7 +46,7 @@ impl DisplayController {
                         println!("Change brightness to {}", brightness_perscent);
                     }
                 }
-                let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));
+                let _sched = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -54,7 +54,7 @@ impl DisplayController {
 
     async fn switch_display(&self, on: bool) {
         let value = if on { "1" } else { "0" };
-        let _ = fs::write(DISPLAY_ON_OFF_FILE, value).await;
+        let _disp = fs::write(DISPLAY_ON_OFF_FILE, value).await;
     }
 
     async fn toggle_display(&self) {

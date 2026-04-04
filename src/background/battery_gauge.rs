@@ -26,7 +26,7 @@ impl BatteryGauge {
 
                 let soc_result = sensor.soc();
                 if let Ok(soc) = soc_result {
-                    let _ = status_tx.send(StatusEvent::UpdateBattery(soc));
+                    let _stat = status_tx.send(StatusEvent::UpdateBattery(soc));
                     println!("Charge: {:.2}%", soc);
                 } else {
                     println!("Failed to soc: {:?}", soc_result);

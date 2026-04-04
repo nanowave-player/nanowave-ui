@@ -194,7 +194,7 @@ impl HeadsetHandler {
 
                         if self.is_headset_remote(&d) {
                             // todo better handling
-                            let _ = d.set_nonblocking(true);
+                            let _non = d.set_nonblocking(true);
 
                             device_option = Some(d);
                             /*

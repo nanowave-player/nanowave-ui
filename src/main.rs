@@ -19,9 +19,12 @@ use std::{env, iter};
 use std::fs::File;
 use std::path::Path;
 use std::thread::sleep;
+use clap::Parser;
 use rodio::cpal::{BufferSize, DeviceId};
 use tokio::sync::mpsc;
-use tracing::Level;
+use tracing::{debug, error, info, trace, warn, Level};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{fmt, EnvFilter};
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 mod background;
@@ -35,12 +38,37 @@ mod input_event;
 mod navigation_event;
 
 
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+struct Cli {
+    /// Sets the environment filter
+    #[arg(long, default_value = "warn,nanowave_ui=trace")]
+    env_filter: String,
+}
 
 fn main() -> Result<(), slint::PlatformError> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_test_writer()
-        .init();
+
+    let cli = Cli::parse();
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "nanowave");
+    let filter = EnvFilter::new(
+        cli.env_filter
+        // "nanowave-ui=debug,warn"
+    );
+
+    let subscriber = fmt()
+        .with_writer(file_appender)
+        .with_env_filter(filter)
+        .with_ansi(false)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set global subscriber");
+
+    trace!("This is an trace log from my crate");
+    debug!("This is an debug log from my crate");
+    info!("This is an info log from my crate");
+    warn!("This is an warn log from my crate");
+    error!("This is an error log from my crate");
 
     // let _ = playtest();
     let media_path = "media/";
@@ -61,7 +89,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let (navigation_evt_tx, mut navigation_evt_rx) = mpsc::unbounded_channel::<NavigationEvent>();
     let (status_evt_tx, mut status_evt_rx) = mpsc::unbounded_channel::<StatusEvent>();
     let (scheduler_evt_tx, scheduler_evt_rx) = mpsc::unbounded_channel::<SchedulerEvent>();
-
 
 
     /*

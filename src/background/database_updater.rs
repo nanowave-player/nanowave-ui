@@ -126,7 +126,7 @@ impl DatabaseUpdater {
 
         }
 
-        let _ = result.save(&db).await;
+        let _save = result.save(&db).await;
 
         // res.unwrap()
 

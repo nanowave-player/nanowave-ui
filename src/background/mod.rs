@@ -25,6 +25,7 @@ use std::{env, fs, thread};
 use std::process::exit;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tracing::{debug, error, instrument};
 
 mod file_scanner;
 mod database_existence_checker;
@@ -46,6 +47,7 @@ pub(crate) mod player;
 pub(crate) mod scheduler;
 mod touch_handler;
 
+#[instrument]
 pub fn start_tokio_background_tasks(config: Config,
                                     media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                                     player_tx: Arc<UnboundedSender<PlayerCommand>>,
@@ -58,7 +60,7 @@ pub fn start_tokio_background_tasks(config: Config,
                                     scheduler_rx: UnboundedReceiver<SchedulerEvent>,
 
 ) {
-    println!("=== start_tokio_background_tasks");
+    debug!("start_tokio_background_tasks");
     thread::spawn(move || {
         tokio::runtime::Runtime::new().unwrap().block_on(background_tasks(
             &config,
@@ -93,6 +95,8 @@ fn ensure_dir_exists(dir: String) -> bool {
     Path::exists(Path::new(dir.as_str())) || !fs::create_dir_all(dir).is_err()
 }
 
+
+#[instrument]
 pub async fn background_tasks(config: &Config,
                               media_source_rx: UnboundedReceiver<MediaSourceCommand>,
                               player_tx: Arc<UnboundedSender<PlayerCommand>>,
@@ -106,14 +110,16 @@ pub async fn background_tasks(config: &Config,
 
 ) {
 
-    println!("=== background_tasks");
+    debug!("background_tasks spawned");
 
     if !ensure_dir_exists(config.storage_path.clone()) {
+        error!("could not create storage directory {}", config.storage_path);
         eprintln!("could not create storage directory {}", config.storage_path);
         exit(1);
     }
 
     if !ensure_dir_exists(config.media_path.clone()) {
+        error!("could not find or create media path {}", config.media_path);
         eprintln!("could not find or create media path {}", config.media_path);
         exit(1);
     }
@@ -122,8 +128,9 @@ pub async fn background_tasks(config: &Config,
     let db_base_path = config.storage_path.clone();
     let db_result = DatabaseWrapper::new(db_base_path).connect().await;
     if db_result.is_err() {
-        println!("Connection to database failed {:?}", db_result);
-        return;
+        error!("Connection to database failed {:?}", db_result);
+        eprintln!("Connection to database failed {:?}", db_result);
+        exit(2);
     }
 
     let db = db_result.unwrap();
@@ -164,7 +171,7 @@ pub async fn background_tasks(config: &Config,
 
     let config_file_scanner = config.clone();
     let file_scanner_task = tokio::spawn(async {
-        println!("=== file_scanner_task");
+        debug!("starting file_scanner_task");
 
         let filter = extension_filter(vec!["mp3", "flac", "wav", "m4b"]);
         let _ = FileScanner::new(config_file_scanner.media_path, file_scanner_rx, file_tx).scan_files(filter).await;
@@ -172,18 +179,18 @@ pub async fn background_tasks(config: &Config,
 
 
     let database_checker_task = tokio::spawn(async {
-        println!("=== database_checker_task");
+        debug!("starting database_checker_task");
         let _ = DatabaseExistenceChecker::new(db_database_checker, file_rx, db_checker_tx).check_items_for_needed_update().await;
     });
 
     let config_meta = config.clone();
     let metadata_retriever_task = tokio::spawn(async {
-        println!("=== metadata_retriever_task");
+        debug!("starting metadata_retriever_task");
         let _ = MetadataRetriever::new(config_meta.media_path, config_meta.cache_path, db_checker_rx, meta_retriever_tx).retrieve_metadata().await;
     });
 
     let database_updater_task = tokio::spawn(async {
-        println!("=== database_updater_task");
+        debug!("starting database_updater_task");
         let _ = DatabaseUpdater::new(db, meta_retriever_rx).update_items().await;
     });
 
@@ -192,7 +199,7 @@ pub async fn background_tasks(config: &Config,
     let media_source_history = media_source.clone();
 
     let media_source_task = tokio::spawn(async {
-        println!("=== media_source_task");
+        debug!("starting media_source_task");
         let _ = media_source.run(media_source_rx).await;
     });
 
@@ -200,7 +207,7 @@ pub async fn background_tasks(config: &Config,
 
     let player_tx_player = player_tx.clone();
     let player_task = tokio::spawn(async {
-        println!("=== player_task");
+        debug!("starting player_task");
         
         let device_ids = match env::var("NANOWAVE_AUDIO_DEVICE") {
             Ok(val) => vec![val],
@@ -221,19 +228,19 @@ pub async fn background_tasks(config: &Config,
 
     let player_tx_input_handler = player_tx.clone();
     let input_handler_task = tokio::spawn(async {
-        println!("=== input_handler_task");
+        debug!("starting input_handler_task");
         // let _ = InputHandler::new().run(input_event_rx, player_tx_input_handler, display_tx).await;
     });
 
 
     let gpio_pins = vec![GpioPin::A22, GpioPin::A23, GpioPin::A24, GpioPin::A25];
     let gpio_task = tokio::spawn(async {
-        println!("=== gpio_task");
+        debug!("starting gpio_task");
         // let _ = GpioHandler::new().run(gpio_pins, gpio_tx).await;
     });
 
 
-    println!("=== file_scanner_tx.send");
+    debug!("starting file_scanner_tx.send");
     let _ = file_scanner_tx.send(FileScannerAction::ScanFiles).await;
 
     // todo:
@@ -256,7 +263,7 @@ pub async fn background_tasks(config: &Config,
     */
 
     let touch_task = tokio::spawn(async {
-        println!("=== touch_task");
+        debug!("starting touch_task");
         let device_paths = vec!["/dev/input/event1", "/dev/input/event12"];
         // let _ = TouchHandler::new().run(device_paths, scheduler_tx).await;
     });
@@ -264,9 +271,9 @@ pub async fn background_tasks(config: &Config,
 
     // start this at last pos because it is blocking, if there is no headset connected (todo: fix this)
     let headset_task = tokio::spawn(async {
-        println!("=== headset_task");
+        debug!("starting headset_task");
         let device_paths = vec!["/dev/input/event2", "/dev/input/event13"];
-        let _ = HeadsetHandler::new().run(device_paths, headset_tx).await;
+        let _headset = HeadsetHandler::new().run(device_paths, headset_tx).await;
     });
     
     let _ = tokio::join!(
