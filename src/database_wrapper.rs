@@ -3,6 +3,7 @@ use crate::migrator::Migrator;
 use sea_orm::{Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
 use std::path::Path;
+use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseWrapper {
@@ -19,6 +20,7 @@ impl DatabaseWrapper {
         );
         let db_exists = Path::new(&db_path).exists();
         let db_url = format!("sqlite://{}?mode=rwc", db_path);
+        debug!("initializing db with url: {}, exists: {}", db_url, db_exists);
         Self {
             db_url,
             db_exists,
@@ -27,6 +29,8 @@ impl DatabaseWrapper {
 
     pub async fn connect(&mut self) -> Result<DatabaseConnection, sea_orm::error::DbErr> {
         let db = Database::connect(self.db_url.clone()).await?;
+        debug!("db connected");
+
         // todo: dirty hack to prevent startup failure if db exists
         // this has to be solved with migrations or at least better than this
         if !self.db_exists {
@@ -37,8 +41,11 @@ impl DatabaseWrapper {
                 .register(items_progress_history::Entity)
                 .apply(&db)
                 .await?;
+            info!("db did not exist, schema built...");
+
         }
         Migrator::up(&db, None).await?;
+        info!("db migrator up");
         Ok(db)
     }
     

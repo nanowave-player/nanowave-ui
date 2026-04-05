@@ -4,6 +4,7 @@ use evdev::{AbsoluteAxisCode, Device};
 use std::path::Path;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::debug;
 
 pub struct TouchHandler {}
 
@@ -33,7 +34,7 @@ impl TouchHandler {
             }
         }
 
-        println!("supported_axis_count: {}", supported_axis_count);
+        debug!("supported_axis_count: {}", supported_axis_count);
 
         // Touch devices typically have 3+ MT axes
         supported_axis_count >= required_axis_count
@@ -51,7 +52,7 @@ impl TouchHandler {
                 match device.fetch_events() {
                     Ok(events) => {
                         for _event in events {
-                            // println!("touch event {:?}", event.destructure())
+                            // debug!("touch event {:?}", event.destructure())
                             let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));
                             break;
                         }
@@ -65,29 +66,29 @@ impl TouchHandler {
                     scheduler_evt_tx.send(e).ok();
                 }
             } else {
-                println!("no touch device");
+                debug!("no touch device");
 
                 for path_str in &device_paths {
                     let path = Path::new(path_str);
                     if !Path::exists(path) {
-                        println!("path did not exists {}", path_str);
+                        debug!("path did not exists {}", path_str);
                         continue;
                     }
                     let device_result = Device::open(path_str);
                     if let Ok(d) = device_result {
 
                         if self.is_touch_device(&d) {
-                            println!("valid touch device found");
+                            debug!("valid touch device found");
 
                             // todo better handling
                             let _ = d.set_nonblocking(true);
 
                             device_option = Some(d);
                         } else {
-                            println!("not a valid touch device");
+                            debug!("not a valid touch device");
                         }
                     } else {
-                        println!("error opening touch device: {:?}", device_result);
+                        debug!("error opening touch device: {:?}", device_result);
                     }
                 }
 

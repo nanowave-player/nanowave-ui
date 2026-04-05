@@ -20,6 +20,7 @@ use sea_orm::DatabaseConnection;
 use sea_orm::QueryFilter;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct FileMediaSource {
@@ -43,26 +44,32 @@ impl FileMediaSource {
         self, // does this need to be mutable?
         mut cmd_rx: UnboundedReceiver<MediaSourceCommand>,
     ) {
-        println!("FileMediaSource::run start");
+        debug!("FileMediaSource::run start");
         while let Some(cmd) = cmd_rx.recv().await {
-            println!("FileMediaSource: cmd received.");
+            debug!("FileMediaSource: cmd received.");
             match cmd {
                 MediaSourceCommand::Filter(cmd) => {
-                    println!("MediaSourceCommand::Filter start");
+                    debug!("MediaSourceCommand::Filter start");
 
                     let results: Vec<MediaSourceItem> = self.filter(&cmd.query).await;
+                    let results_count = results.len();
                     (cmd.callback)(results);
-                    println!("MediaSourceCommand::Filter end");
+                    debug!("filter results: {}", results_count);
+                    debug!("MediaSourceCommand::Filter end");
 
                 }
 
                 MediaSourceCommand::Find(cmd) => {
-                    println!("MediaSourceCommand::Find start");
+                    debug!("MediaSourceCommand::Find start");
 
-                    let result: Option<MediaSourceItem> = self.find(&cmd.id).await;
+                    let result_option: Option<MediaSourceItem> = self.find(&cmd.id).await;
+
+                    let result_is_some = result_option.is_some();
+
                     // todo: what about progress
-                    (cmd.callback)(result);
-                    println!("MediaSourceCommand::Find end");
+                    (cmd.callback)(result_option);
+                    debug!("result found: {}", result_is_some);
+                    debug!("MediaSourceCommand::Find end");
 
                 }
             }

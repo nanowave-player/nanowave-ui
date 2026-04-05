@@ -1,13 +1,15 @@
+use crate::background::media_source::MediaSource;
 use cpal::DeviceId;
 use media_source::media_source_chapter::MediaSourceChapter;
 use media_source::media_source_history_item::MediaSourceHistoryItem;
 use media_source::media_source_item::MediaSourceItem;
 use media_source::media_source_session_key::MediaSourceSessionKey;
 use mpsc::UnboundedReceiver;
-use rodio::cpal::traits::HostTrait;
+use rodio::buffer::SamplesBuffer;
 use rodio::cpal::BufferSize;
+use rodio::cpal::traits::HostTrait;
 use rodio::source::SeekError;
-use rodio::{cpal, DeviceSinkBuilder, DeviceTrait, Float, MixerDeviceSink, Source};
+use rodio::{DeviceSinkBuilder, DeviceTrait, Float, MixerDeviceSink, Source, cpal};
 use std::cmp::max;
 use std::fs::File;
 use std::io;
@@ -17,13 +19,11 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use rodio::buffer::SamplesBuffer;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
-
-use crate::background::media_source::MediaSource;
+use tracing::{debug, warn};
 
 #[derive(Debug)]
 pub enum PlayerCommand {
@@ -67,10 +67,7 @@ pub struct Player {
 
 impl Player {
     // sink:Option<rodio::Player>, stream: Option<MixerDeviceSink>
-    pub fn new(
-        media_source: Arc<dyn MediaSource>,
-        device_ids: Vec<String>,
-    ) -> Player {
+    pub fn new(media_source: Arc<dyn MediaSource>, device_ids: Vec<String>) -> Player {
         Self {
             media_source,
             // media_source_tx,
@@ -78,10 +75,9 @@ impl Player {
             stream: None,
             sink: None,
             item: None,
-            session_key: MediaSourceSessionKey::new()
+            session_key: MediaSourceSessionKey::new(),
         }
     }
-
 
     fn parse_device_ids_lossy(strings: Vec<String>) -> Vec<DeviceId> {
         strings
@@ -92,75 +88,70 @@ impl Player {
 
 
     pub fn connect_sink(&mut self) -> bool {
-
         /*
-&builder = DeviceSinkBuilder {
-    device: "Some(Default Audio Device)",
-    config: DeviceSinkConfig {
-        channel_count: 2,
-        sample_rate: 44100,
-        buffer_size: Default,
-        sample_format: F32,
-    },
-}
-         */
+        &builder = DeviceSinkBuilder {
+            device: "Some(Default Audio Device)",
+            config: DeviceSinkConfig {
+                channel_count: 2,
+                sample_rate: 44100,
+                buffer_size: Default,
+                sample_format: F32,
+            },
+        }
+                 */
 
         let host = cpal::default_host();
 
         let device_id_strings = self.device_ids.to_vec();
         let mut device_option = host.default_output_device();
 
-
         let device_ids = Self::parse_device_ids_lossy(device_id_strings);
         for device_id in device_ids {
-            print!("attempt get device by id: {}", device_id);
             let dev = host.device_by_id(&device_id);
             if dev.is_some() {
-                println!(" => success");
-
+                debug!("success: get device by id: {}", device_id);
                 device_option = dev;
                 break;
             } else {
-                println!(" => failed");
+                debug!("failed: get device by id: {}", device_id);
             }
         }
 
+        /*
+                let all_devices_result = host.output_devices();
+                let device_option = if let Ok(all_devices) = all_devices_result {
 
-/*
-        let all_devices_result = host.output_devices();
-        let device_option = if let Ok(all_devices) = all_devices_result {
 
+                    let mut tmp_dev: Option<Device> = None;
+                    let self_device_ids = self.device_ids.clone();
 
-            let mut tmp_dev: Option<Device> = None;
-            let self_device_ids = self.device_ids.clone();
-
-            for device in all_devices {
-                if let Ok(all_device_id) = device.id() {
-                    // let all_device_id = format!("{:?}", all_device_id_id.1);
-                    let device_ids = Self::parse_device_ids_lossy(self_device_ids);
-                    let mut found_device = false;
-                    for device_id in device_ids {
-                        println!("device:{} == preferred:{}", all_device_id, device_id);
-                        if all_device_id == device_id {
-                            found_device = true;
-                            break;
+                    for device in all_devices {
+                        if let Ok(all_device_id) = device.id() {
+                            // let all_device_id = format!("{:?}", all_device_id_id.1);
+                            let device_ids = Self::parse_device_ids_lossy(self_device_ids);
+                            let mut found_device = false;
+                            for device_id in device_ids {
+                                debug!("device:{} == preferred:{}", all_device_id, device_id);
+                                if all_device_id == device_id {
+                                    found_device = true;
+                                    break;
+                                }
+                            }
+                            if found_device {
+                                tmp_dev = Some(device);
+                                debug!("found device: {}", all_device_id);
+                                break;
+                            } else {
+                                debug!("ignore device: {}", all_device_id);
+                            }
                         }
                     }
-                    if found_device {
-                        tmp_dev = Some(device);
-                        println!("found device: {}", all_device_id);
-                        break;
-                    } else {
-                        println!("ignore device: {}", all_device_id);
-                    }
-                }
-            }
-            tmp_dev
-        } else {
-            println!("no predefined audio device found, using default");
-            host.default_output_device()
-        };
-*/
+                    tmp_dev
+                } else {
+                    debug!("no predefined audio device found, using default");
+                    host.default_output_device()
+                };
+        */
         /*
         let mut device = host.default_output_device().expect("default device");
 
@@ -180,46 +171,54 @@ impl Player {
                     "- no description -".to_string()
                 };
 
-                println!("=> device - id: {}, desc: {}", id_str, description);
+                debug!("=> device - id: {}, desc: {}", id_str, description);
             }
         }
 
         let default_device_id_string = format!("{:?}", device.id());
-        println!("default device: {:?}", default_device_id_string);
-        println!("chosen device (via ENV): {:?}", device_ids);
+        debug!("default device: {:?}", default_device_id_string);
+        debug!("chosen device (via ENV): {:?}", device_ids);
 
         for device_id in &device_ids {
-            println!("device id {:?}", device_id);
+            debug!("device id {:?}", device_id);
             if let Ok(id) = &device_id.parse() {
-                println!("  parsed {:?}", id);
+                debug!("  parsed {:?}", id);
                 if let Some(dev) = host.device_by_id(id) {
-                    println!("using audio device id {:?} ", id);
+                    debug!("using audio device id {:?} ", id);
                     device = dev;
                     break;
                 } else {
-                    println!("  host has no device {:?}", id);
+                    debug!("  host has no device {:?}", id);
                 }
             }
         };
         */
-        print!("trying to connect audio device");
+        debug!("trying to connect audio device");
         if let Some(device) = device_option {
-            println!(" => device {:?} is available", device.id());
+            debug!(" => device {:?} is available", device.id());
 
             if let Ok(builder) = DeviceSinkBuilder::from_device(device)
-                && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
-                println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
+                && let Ok(stream) = builder
+                    .with_buffer_size(BufferSize::Fixed(512))
+                    .open_stream()
+            {
+                debug!(
+                    "success - initialized stream with buffer size: {:?}",
+                    stream.config().buffer_size()
+                );
 
                 self.sink = Some(Arc::new(rodio::Player::connect_new(stream.mixer())));
                 self.stream = Some(stream);
+
+
                 return true;
             } else {
-                println!("failed to open audio stream");
+                warn!("failed to open audio stream with device");
             }
         } else {
-            println!("failed to find audio device");
+            warn!("failed to find audio device");
         }
-        return false;
+        false
     }
 
     fn previous_delay(&self) -> Duration {
@@ -227,13 +226,7 @@ impl Player {
         Duration::from_secs(3)
     }
 
-
-
-    fn sine_wave(
-        frequency: f32,
-        duration: Duration,
-        sample_rate: u32,
-    ) -> SamplesBuffer {
+    fn sine_wave(frequency: f32, duration: Duration, sample_rate: u32) -> SamplesBuffer {
         let sample_rate_nz = NonZeroU32::new(sample_rate).unwrap();
         let channels = NonZeroU16::new(1).unwrap(); // mono
 
@@ -264,7 +257,7 @@ impl Player {
 
             sink.play();
         } else {
-            println!("NO SINK!");
+            warn!("NO SINK!");
         }
     }
     /*
@@ -286,8 +279,11 @@ impl Player {
      */
 
     async fn play_media(&mut self, id: String) -> io::Result<()> {
-        if self.load_media(id, Duration::from_secs(0)).await {
+        debug!("player: loading media {}", &id);
+        if self.load_media(id.clone(), Duration::from_secs(0)).await {
             self.toggle();
+        } else {
+            warn!("player: failed to load media {}", &id);
         }
         Ok(())
     }
@@ -298,6 +294,7 @@ impl Player {
         if let Some(i) = self_item
             && id == i.id
         {
+            debug!("player: media is the same, no need to reload");
             return true;
         }
 
@@ -305,6 +302,7 @@ impl Player {
 
         self.item = self.media_source.find(&id).await;
         if self.item.is_none() {
+            debug!("player: could not use media_source to find item -> self.item is none");
             return false;
         }
 
@@ -315,14 +313,23 @@ impl Player {
 
         if let Ok(file) = file_result {
             let decoder_result = rodio::Decoder::try_from(file);
-            if let Some(sink) = self.get_sink() && let Ok(decoder) = decoder_result{
+            if let Some(sink) = self.get_sink()
+                && let Ok(decoder) = decoder_result
+            {
                 sink.clear();
                 sink.append(decoder);
                 if position > zero_duration {
                     let _ = sink.try_seek(position);
                 }
                 return true;
+            } else {
+                warn!(
+                    "player: could not get sink or decoder (decoder: {:?})",
+                    decoder_result.err()
+                );
             }
+        } else {
+            warn!("player: error loading file {:?}", file_result.err());
         }
 
         false
@@ -352,7 +359,7 @@ impl Player {
 
     fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
         if let Some(sink) = self.get_sink() {
-            return sink.try_seek(position)
+            return sink.try_seek(position);
         }
         Ok(())
     }
@@ -417,22 +424,20 @@ impl Player {
     // todo:
     // next, previous, set_volume, set_speed
 
-
     /// ui_percent: 0.0-100.0 → rodio gain: 0.0-1.5 (logarithmic perception)
     pub fn calculate_volume_percent(&self, ui_percent: f32) -> Float {
         let max_gain = 1.5f32;
 
-        let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0;  // 0.0-1.0
+        let ui_normalized = ui_percent.clamp(0.0, 100.0) / 100.0; // 0.0-1.0
 
         // Map 0-100% to -80dB → 0dB linearly
-        let db = ui_normalized * 80.0 - 80.0;  // 0%=-80dB, 100%=0dB
+        let db = ui_normalized * 80.0 - 80.0; // 0%=-80dB, 100%=0dB
 
         // Convert dB to linear gain (rodio range)
-        let linear_gain = 10.0f32.powf(db / 20.0);  // -80dB=0.0, 0dB=1.0
+        let linear_gain = 10.0f32.powf(db / 20.0); // -80dB=0.0, 0dB=1.0
 
         // Scale to rodio max (1.5)
         linear_gain * max_gain
-
     }
 
     /// Reverse mapping: rodio gain → UI %
@@ -440,7 +445,7 @@ impl Player {
         let max_gain = 1.5f32;
 
         let current_gain = absolute_volume;
-        let normalized_gain = current_gain / max_gain;  // 0.0-1.0
+        let normalized_gain = current_gain / max_gain; // 0.0-1.0
 
         // dB from linear gain
         let db = 20.0 * normalized_gain.log10();
@@ -455,7 +460,6 @@ impl Player {
             let current = self.get_volume_percent(sink.volume());
             sink.set_volume(self.calculate_volume_percent(current + 1f32));
         }
-
     }
 
     pub fn decrease_volume(&mut self) {
@@ -479,7 +483,9 @@ impl Player {
 
         output = format!("{}\nDefault:", output);
 
-        if let Some(default) = default_option && let Ok(default_id) = default.id() {
+        if let Some(default) = default_option
+            && let Ok(default_id) = default.id()
+        {
             output = format!("{}\n- {}", output, default_id);
         } else {
             output = format!("{}\n- not found", output);
@@ -498,10 +504,8 @@ impl Player {
             output = format!("{}\n- no audio device found, using default", output);
         };
 
-        println!("{}\n=================", output);
-
+        debug!("{}\n=================", output);
     }
-
 
     pub async fn run(
         &mut self,
@@ -514,129 +518,164 @@ impl Player {
         let mut last_history_update = Arc::new(SystemTime::now());
         let mut last_player_pos = Duration::from_secs(0);
 
-
         loop {
-
-
             tokio::select! {
 
-                    Some(cmd) = cmd_rx.recv() => {
-                        println!("============== cmd received ==============");
+                Some(cmd) = cmd_rx.recv() => {
 
-                        let rewind_tx = cmd_tx.clone();
-                        let fast_forward_tx = cmd_tx.clone();
-                        match cmd {
-                            PlayerCommand::Update(s) => {
-                                let _ = self.play_media(s.clone()).await;
-                                // format!("Playing {}", x)
-                                // todo: implement player.is_playing / player.status
+                    let rewind_tx = cmd_tx.clone();
+                    let fast_forward_tx = cmd_tx.clone();
+                    match cmd {
+                        PlayerCommand::Update(s) => {
+                            debug!("player: cmd Update({})", s);
 
-                                self.update_playing_status(&evt_tx).await;
-                                /*
-                                if self.sink.is_paused() {
-                                    let _ = evt_tx.send(PlayerEvent::Status("paused".to_string()));
-                                } else {
-                                    let _ = evt_tx.send(PlayerEvent::Status("playing".to_string()));
-                                }
+                            let _ = self.play_media(s.clone()).await;
+                            // format!("Playing {}", x)
+                            // todo: implement player.is_playing / player.status
 
-                                 */
+                            self.update_playing_status(&evt_tx).await;
+                            /*
+                            if self.sink.is_paused() {
+                                let _ = evt_tx.send(PlayerEvent::Status("paused".to_string()));
+                            } else {
+                                let _ = evt_tx.send(PlayerEvent::Status("playing".to_string()));
                             }
-                            PlayerCommand::PlayTest() => {
-                                self.play_test().await;
-                            }
-                            PlayerCommand::PlayMedia(s, position) => {
-                                let _ = self.load_media(s, position).await;
-                                let _ = self.play();
-                                self.update_playing_status(&evt_tx).await;
-                            }
-                            PlayerCommand::RestoreLastSession(media_source_history_item) => {
-                                let media_item_id = media_source_history_item.item.id.clone();
-                                let position = media_source_history_item.position;
-                                self.session_key = media_source_history_item.session_key.clone();
 
-                                let _ = self.load_media(media_item_id, position).await;
-                                self.update_playing_status(&evt_tx).await;
-                            }
-                            PlayerCommand::Play() => {
-                                self.play();
-                                self.update_playing_status(&evt_tx).await;
-                            }
-                            PlayerCommand::Pause() => {
-                                self.pause();
-                                self.update_playing_status(&evt_tx).await;
-                            }
-                            PlayerCommand::Stop() => {
-                                let _ = evt_tx.send(PlayerEvent::Stopped);
-                                break;
-                            },
-                            PlayerCommand::Next() => {
-                                self.go_next(evt_tx.clone()).await;
-                            }
-                            PlayerCommand::Previous() => {
-                                self.go_previous(evt_tx.clone()).await;
-
-                            }
-                            PlayerCommand::SeekRelative(millis) => {
-                                self.seek_relative(millis);
-                            }
-                            PlayerCommand::SeekTo(_) => {},
-                            PlayerCommand::Toggle() => {
-                                self.toggle();
-                                self.update_playing_status(&evt_tx).await;
-                            },
-                            PlayerCommand::CancelOngoing() => {
-                                let option = ongoing_option.deref();
-                                if let Some(ongoing) = option {
-                                    ongoing.abort();
-                                    ongoing_option = Arc::new(None);
-                                }
-                            },
-                            PlayerCommand::Rewind() => {
-                                 ongoing_option = Arc::new(Some(tokio::spawn(async move {
-                                    loop {
-                                        println!("rewind");
-                                        // self.seek_relative(sink, -15000);
-                                        rewind_tx.send(PlayerCommand::SeekRelative(-15000)).unwrap();
-                                        tokio::time::sleep(Duration::from_millis(800)).await;
-                                    }
-                                })));
-                            },
-                            PlayerCommand::FastForward() => {
-                                 ongoing_option = Arc::new(Some(tokio::spawn(async move {
-                                    loop {
-                                        println!("fast-forward");
-                                        fast_forward_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
-                                        tokio::time::sleep(Duration::from_millis(800)).await;
-                                    }
-                                })));
-                            },
-                            PlayerCommand::IncreaseVolume => self.increase_volume(),
-                            PlayerCommand::DecreaseVolume => self.decrease_volume(),
-                            PlayerCommand::SetVolume(percent) => self.set_volume(percent),
+                             */
                         }
-                    }
+                        PlayerCommand::PlayTest() => {
+                                                        debug!("player: cmd PlayTest()");
 
-                    _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                        if let Some(sink) = self.get_sink() {
-                            let pos = sink.get_pos();
+                            self.play_test().await;
+                        }
+                        PlayerCommand::PlayMedia(s, position) => {
+                                                        debug!("player: cmd PlayMedia({}, {:?})", s, position);
 
-                            if pos != last_player_pos {
-                                self.update_position(&evt_tx, pos).await;
-                                last_player_pos = pos;
+                            let _ = self.load_media(s, position).await;
+                            let _ = self.play();
+                            self.update_playing_status(&evt_tx).await;
+                        }
+                        PlayerCommand::RestoreLastSession(media_source_history_item) => {
+                                                        debug!("player: cmd RestoreLastSession({})", media_source_history_item.item.id);
+
+                            let media_item_id = media_source_history_item.item.id.clone();
+                            let position = media_source_history_item.position;
+                            self.session_key = media_source_history_item.session_key.clone();
+
+                            let _ = self.load_media(media_item_id, position).await;
+                            self.update_playing_status(&evt_tx).await;
+                        }
+                        PlayerCommand::Play() => {
+                                                        debug!("player: cmd Play()");
+
+                            self.play();
+                            self.update_playing_status(&evt_tx).await;
+                        }
+                        PlayerCommand::Pause() => {
+                                                                                    debug!("player: cmd Pause()");
+
+                            self.pause();
+                            self.update_playing_status(&evt_tx).await;
+                        }
+                        PlayerCommand::Stop() => {
+                                                                                    debug!("player: cmd Stop()");
+
+                            let _ = evt_tx.send(PlayerEvent::Stopped);
+                            break;
+                        },
+                        PlayerCommand::Next() => {
+                                                                                    debug!("player: cmd Next()");
+
+                            self.go_next(evt_tx.clone()).await;
+                        }
+                        PlayerCommand::Previous() => {
+                                                                                    debug!("player: cmd Previous()");
+
+                            self.go_previous(evt_tx.clone()).await;
+
+                        }
+                        PlayerCommand::SeekRelative(millis) => {
+                                                        debug!("player: cmd SeekRelative({})", millis);
+
+                            self.seek_relative(millis);
+                        }
+                        PlayerCommand::SeekTo(_) => {
+                                                        debug!("player: cmd SeekTo()");
+
+                    },
+                        PlayerCommand::Toggle() => {
+                                                                                    debug!("player: cmd Toggle()");
+
+                            self.toggle();
+                            self.update_playing_status(&evt_tx).await;
+                        },
+                        PlayerCommand::CancelOngoing() => {
+                                                                                    debug!("player: cmd CancelOngoing()");
+
+                            let option = ongoing_option.deref();
+                            if let Some(ongoing) = option {
+                                ongoing.abort();
+                                ongoing_option = Arc::new(None);
                             }
+                        },
+                        PlayerCommand::Rewind() => {
+                                                                                    debug!("player: cmd Rewind()");
 
-
-                            if !sink.is_paused() {
-                                if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
-                                    last_history_update = Arc::new(last_update);
+                             ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                                loop {
+                                    debug!("rewind");
+                                    // self.seek_relative(sink, -15000);
+                                    rewind_tx.send(PlayerCommand::SeekRelative(-15000)).unwrap();
+                                    tokio::time::sleep(Duration::from_millis(800)).await;
                                 }
+                            })));
+                        },
+                        PlayerCommand::FastForward() => {
+                                                                                    debug!("player: cmd FastForward()");
+
+                             ongoing_option = Arc::new(Some(tokio::spawn(async move {
+                                loop {
+                                    debug!("fast-forward");
+                                    fast_forward_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
+                                    tokio::time::sleep(Duration::from_millis(800)).await;
+                                }
+                            })));
+                        },
+                        PlayerCommand::IncreaseVolume => {
+                             debug!("player: cmd IncreaseVolume()");
+
+                        self.increase_volume();
+                        },
+                        PlayerCommand::DecreaseVolume => {
+                                                                                                                debug!("player: cmd DecreaseVolume()");
+
+                        self.decrease_volume();
+                    },
+                        PlayerCommand::SetVolume(percent) => {
+                        debug!("player: cmd SetVolume({})", percent);
+
+                        self.set_volume(percent)},
+                    }
+                }
+
+                _ = tokio::time::sleep(Duration::from_millis(500)) => {
+                    if let Some(sink) = self.get_sink() {
+                        let pos = sink.get_pos();
+
+                        if pos != last_player_pos {
+                            self.update_position(&evt_tx, pos).await;
+                            last_player_pos = pos;
+                        }
+
+
+                        if !sink.is_paused() {
+                            if let Some(last_update) = self.update_history(last_history_update.clone(), pos).await {
+                                last_history_update = Arc::new(last_update);
                             }
                         }
                     }
                 }
-
-
-
+            }
         }
         // let evt_tx2 = evt_tx.clone();
         /*
@@ -667,7 +706,7 @@ impl Player {
         /*
         loop {
             while let Some(cmd) = cmd_rx.recv().await {
-                println!("============== cmd received ==============");
+                debug!("============== cmd received ==============");
 
                 let rewind_tx = cmd_tx.clone();
                 let fast_forward_tx = cmd_tx.clone();
@@ -688,7 +727,7 @@ impl Player {
                          */
                     }
                     PlayerCommand::PlayTest() => {
-                        println!("PlayTest received");
+                        debug!("PlayTest received");
                         self.play_test().await;
                     }
                     PlayerCommand::PlayMedia(s, position) => {
@@ -741,7 +780,7 @@ impl Player {
                     PlayerCommand::Rewind() => {
                         ongoing_option = Arc::new(Some(tokio::spawn(async move {
                             loop {
-                                println!("rewind");
+                                debug!("rewind");
                                 // self.seek_relative(sink, -15000);
                                 rewind_tx.send(PlayerCommand::SeekRelative(-15000)).unwrap();
                                 tokio::time::sleep(Duration::from_millis(800)).await;
@@ -751,7 +790,7 @@ impl Player {
                     PlayerCommand::FastForward() => {
                         ongoing_option = Arc::new(Some(tokio::spawn(async move {
                             loop {
-                                println!("fast-forward");
+                                debug!("fast-forward");
                                 fast_forward_tx.send(PlayerCommand::SeekRelative(15000)).unwrap();
                                 tokio::time::sleep(Duration::from_millis(800)).await;
                             }
@@ -765,11 +804,9 @@ impl Player {
         }
 
          */
-
     }
 
     pub async fn go_next(&mut self, evt_tx: UnboundedSender<PlayerEvent>) {
-
         let next_chapter = self.next_chapter();
         if next_chapter.is_some() {
             let new_pos = next_chapter.unwrap().start;
@@ -784,7 +821,7 @@ impl Player {
         if self.sink.is_none() {
             self.connect_sink();
         }
-       self.sink.clone()
+        self.sink.clone()
     }
 
     /*
@@ -796,7 +833,7 @@ impl Player {
             if let Some(sink) = &self.sink {
                 tokio::select! {
                     Some(cmd) = cmd_rx.recv() => {
-                        println!("============== run_buttons cmd received ==============");
+                        debug!("============== run_buttons cmd received ==============");
                         match cmd {
                             PlayerCommand::HandleButton(ButtonKey, ButtonAction, SystemTime) => {
                                 if ButtonAction == ButtonAction::Release {
@@ -817,7 +854,6 @@ impl Player {
             let new_pos = max(sink.get_pos().as_millis() as i64 + millis, 0) as u64;
             let _ = self.try_seek(Duration::from_millis(new_pos));
         }
-
     }
 
     async fn update_position(&self, evt_tx: &UnboundedSender<PlayerEvent>, pos: Duration) {
@@ -826,7 +862,11 @@ impl Player {
         }
     }
 
-    async fn update_history(&self, last_history_update: Arc<SystemTime>, pos: Duration) -> Option<SystemTime> {
+    async fn update_history(
+        &self,
+        last_history_update: Arc<SystemTime>,
+        pos: Duration,
+    ) -> Option<SystemTime> {
         let item_option = self.item.clone();
         if let Some(item) = item_option {
             // todo: implement history update
@@ -836,7 +876,12 @@ impl Player {
             // self.media_source.history_update(&item.id, "", pos).await;
 
             if *last_history_update < SystemTime::now() - Duration::from_secs(5) {
-                let history_item = MediaSourceHistoryItem::new(item, self.session_key.clone(), pos.clone(), SystemTime::now());
+                let history_item = MediaSourceHistoryItem::new(
+                    item,
+                    self.session_key.clone(),
+                    pos.clone(),
+                    SystemTime::now(),
+                );
                 let _ = self.media_source.history_update(history_item).await;
 
                 return Some(SystemTime::now());
@@ -857,10 +902,7 @@ impl Player {
             }
             let self_item = self_item_opt.unwrap();
             if sink.is_paused() {
-                let _ = evt_tx.send(PlayerEvent::Status(
-                    self_item.clone(),
-                    "paused".to_string(),
-                ));
+                let _ = evt_tx.send(PlayerEvent::Status(self_item.clone(), "paused".to_string()));
             } else {
                 let _ = evt_tx.send(PlayerEvent::Status(
                     self_item.clone(),
@@ -871,7 +913,6 @@ impl Player {
     }
 
     async fn go_previous(&mut self, evt_tx: UnboundedSender<PlayerEvent>) {
-
         if let Some(sink) = self.get_sink() {
             let current_pos = sink.get_pos();
             if current_pos <= self.previous_delay() {
@@ -880,20 +921,18 @@ impl Player {
             }
 
             if let Some(current_chapter) = self.current_chapter()
-                && current_pos - current_chapter.start > self.previous_delay() {
+                && current_pos - current_chapter.start > self.previous_delay()
+            {
                 self.try_seek(current_chapter.start).unwrap();
                 self.update_position(&evt_tx, current_chapter.start).await;
-
             } else if let Some(previous_chapter) = self.previous_chapter() {
                 self.try_seek(previous_chapter.start).unwrap();
                 self.update_position(&evt_tx, previous_chapter.start).await;
-
             } else {
                 let zero = Duration::from_secs(0);
                 self.try_seek(zero).unwrap();
                 self.update_position(&evt_tx, zero).await;
             }
         }
-
     }
 }

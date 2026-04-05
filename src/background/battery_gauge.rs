@@ -1,6 +1,7 @@
 use linux_embedded_hal::I2cdev;
 use max170xx::Max17043;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{debug, warn};
 
 pub enum StatusEvent {
     UpdateBattery(f32)
@@ -27,13 +28,13 @@ impl BatteryGauge {
                 let soc_result = sensor.soc();
                 if let Ok(soc) = soc_result {
                     let _stat = status_tx.send(StatusEvent::UpdateBattery(soc));
-                    println!("Charge: {:.2}%", soc);
+                    debug!("Charge: {:.2}%", soc);
                 } else {
-                    println!("Failed to soc: {:?}", soc_result);
+                    warn!("Failed to soc: {:?}", soc_result);
                 }
 
             } else {
-                println!("Failed to i2c-5: {:?}", dev_result.err());
+                warn!("Failed to i2c-5: {:?}", dev_result.err());
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(120)).await;

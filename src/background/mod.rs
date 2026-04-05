@@ -215,9 +215,9 @@ pub async fn background_tasks(config: &Config,
         };
 
         if device_ids.is_empty() {
-            println!("NANOWAVE_AUDIO_DEVICE environment variable is not set, using default audio device");
+            debug!("NANOWAVE_AUDIO_DEVICE environment variable is not set, using default audio device");
         } else {
-            println!("NANOWAVE_AUDIO_DEVICE={:?}", device_ids);
+            debug!("NANOWAVE_AUDIO_DEVICE={:?}", device_ids);
         }
 
         let _ = Player::new(Arc::new(media_source_player), device_ids).run(player_tx_player, player_rx, player_evt_tx).await;

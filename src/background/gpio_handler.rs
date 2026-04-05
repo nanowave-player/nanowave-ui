@@ -7,6 +7,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use futures::future::join_all;
 use futures::StreamExt;
+use tracing::debug;
 
 pub struct GpioHandler {
 
@@ -18,7 +19,7 @@ impl GpioHandler {
     }
 
     pub async fn run(&mut self, gpio_pins: Vec<GpioPin>, gpio_tx: Arc<UnboundedSender<InputEvent>>) {
-        println!("Starting GpioHandler");
+        debug!("Starting GpioHandler");
 
         join_all(gpio_pins.into_iter().map(|p| {
             let gpio_tx = gpio_tx.clone();
@@ -43,7 +44,7 @@ impl GpioHandler {
                     GpioPin::A25 => InputEventButton::VolumeIncrease,
                 };
 
-                println!("handling gpio pin {}", gpio_pin.to_u64());
+                debug!("handling gpio pin {}", gpio_pin.to_u64());
 
                 let _ = input.with_exported(|| {
                     input.set_direction(Direction::In)?;
@@ -53,7 +54,7 @@ impl GpioHandler {
                         let input_event_button = input_event_button.clone();
                         let val = input.get_value()?;
                         if val != prev_val {
-                            println!("gpio pin {} state: {} ({})", pin, if val == 0 { "Low" } else { "High" }, val);
+                            debug!("gpio pin {} state: {} ({})", pin, if val == 0 { "Low" } else { "High" }, val);
 
                             let action = if val == 0 {
                                 InputEventAction::Press
@@ -83,7 +84,7 @@ async fn monitor_pin(pin: Pin, gpio_tx: Arc<UnboundedSender<InputEvent>>) -> Res
     let mut gpio_events = pin.get_value_stream()?;
     while let Some(evt) = gpio_events.next().await {
         let val = evt?;
-        println!("Pin {} changed value to {}", pin.get_pin_num(), val);
+        debug!("Pin {} changed value to {}", pin.get_pin_num(), val);
 
         let pin_num = pin.get_pin_num();
 

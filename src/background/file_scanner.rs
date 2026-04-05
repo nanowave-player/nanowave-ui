@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 pub enum FileScannerAction {
     ScanFiles
@@ -29,17 +30,17 @@ impl FileScanner {
         
         
         while let Some(action) = self.rx.recv().await {
-            println!("filescanner: received action");
+            debug!("filescanner: received action");
             match action {
                 FileScannerAction::ScanFiles => {
 
                     let root = self_root.clone();
                     for entry in walkdir::WalkDir::new(root) {
-                        println!("filescanner: walk entry");
+                        debug!("filescanner: walk entry");
 
                         let entry = entry?;
                         if entry.file_type().is_file() && filter(entry.path()) {
-                            println!("filescanner: send entry");
+                            debug!("filescanner: send entry");
                             if let Err(_) = self.tx.send(entry.path().to_path_buf()).await {
                                 break; // downstream closed
                             }

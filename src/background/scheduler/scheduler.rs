@@ -122,10 +122,10 @@ impl Scheduler {
         });
 
         loop {
-            println!("Scheduler loop");
+            debug!("Scheduler loop");
             let now = SystemTime::now();
             if now - display_off_after > display_off_reference_time {
-                println!("scheduler: turn display off");
+                debug!("scheduler: turn display off");
                 let _ = display_tx.send(DisplayCommand::TurnOff);
                 display_off_reference_time = SystemTime::now();
             }

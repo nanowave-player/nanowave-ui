@@ -49,26 +49,7 @@ struct Cli {
 fn main() -> Result<(), slint::PlatformError> {
 
     let cli = Cli::parse();
-    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "nanowave");
-    let filter = EnvFilter::new(
-        cli.env_filter
-        // "nanowave-ui=debug,warn"
-    );
-
-    let subscriber = fmt()
-        .with_writer(file_appender)
-        .with_env_filter(filter)
-        .with_ansi(false)
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set global subscriber");
-
-    trace!("This is an trace log from my crate");
-    debug!("This is an debug log from my crate");
-    info!("This is an info log from my crate");
-    warn!("This is an warn log from my crate");
-    error!("This is an error log from my crate");
+    init_tracing(cli.env_filter);
 
     // let _ = playtest();
     let media_path = "media/";
@@ -142,7 +123,7 @@ fn main() -> Result<(), slint::PlatformError> {
     /*
     // /dev/input/event1
     let linuxkms_backend_result = i_slint_backend_linuxkms::BackendBuilder::default().with_libinput_event_hook(Box::new(move |e| -> bool {
-        println!("input hook");
+        debug!("input hook");
         false
     })).build();
     if let Ok(linuxkms_backend) = linuxkms_backend_result {
@@ -166,7 +147,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let slint_preferences = ui.global::<SlintPreferences>();
     slint_preferences.on_user_interaction(move || {
-        println!("user interaction detected: sending timer reset");
+        debug!("user interaction detected: sending timer reset");
         let _ = scheduler_evt_tx.send(SchedulerEvent::Reset(type_name::<DisplayAutoShutdownTask>().to_string()));
     });
     */
@@ -219,14 +200,14 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let slint_media_source = ui.global::<SlintMediaSource>();
     slint_media_source.on_filter({
-        println!("main.rs -> on_filter");
+        debug!("slint_media_source on_filter");
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
             let ui_weak_clone = ui.as_weak().clone();
             let cmd = MediaSourceCommand::Filter(FilterCommand {
                 query: query.to_string(),
                 callback: Box::new(|items| {
-                    println!("Filtercommand::callback is called");
+                    debug!("Filtercommand::callback is called");
 
                     slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak_clone.upgrade() else {
@@ -247,7 +228,7 @@ fn main() -> Result<(), slint::PlatformError> {
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
             media_source_filter_tx.send(cmd).ok();
-            println!("main.rs -> on_filter end");
+            debug!("slint_media_source on_filter end");
         }
     });
 
@@ -295,9 +276,9 @@ fn main() -> Result<(), slint::PlatformError> {
     slint_audio_player.on_play_test({
         let tx = player_cmd_tx.clone();
         move || {
-            println!("slint_audio_player.on_play_test before");
+            debug!("slint_audio_player.on_play_test sending PlayerCommand::PlayTest");
             tx.send(PlayerCommand::PlayTest()).unwrap();
-            println!("slint_audio_player.on_play_test after");
+            debug!("slint_audio_player.on_play_test PlayerCommand::PlayTest sent");
         }
     });
 
@@ -372,7 +353,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     match event {
 
                         PreferencesCommand::SetEnableTouchEvents(enable_touch_events) => {
-                            println!("set_enable_touch_events: {}", enable_touch_events);
+                            debug!("set_enable_touch_events: {}", enable_touch_events);
                             // inner.set_enable_touch_events(enable_touch_events);
                         }
 
@@ -444,7 +425,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     PlayerEvent::Stopped => {}
 
                     PlayerEvent::Position(_item_id, position) => {
-                        // println!("item_id: {}, position: {:?}", item_id, position.clone());
+                        // debug!("item_id: {}, position: {:?}", item_id, position.clone());
                         // inner.set_current_item_id(item_id.to_shared_string());
 
                         let mut item = inner.get_current_item();
@@ -468,6 +449,27 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.run()
 }
 
+fn init_tracing(env_filter: String) {
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "nanowave");
+    let filter = EnvFilter::new(
+        env_filter
+    );
+
+    let subscriber = fmt()
+        .with_writer(file_appender)
+        .with_env_filter(filter)
+        .with_ansi(false)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set global subscriber");
+
+    trace!("This is an trace log from my crate");
+    debug!("This is an debug log from my crate");
+    info!("This is an info log from my crate");
+    warn!("This is an warn log from my crate");
+    error!("This is an error log from my crate");
+}
 
 
 pub fn format_duration(duration: Duration) -> String {
@@ -502,26 +504,25 @@ fn playtest() -> Result<(), slint::PlatformError>{
         .collect();
 
     for device_id in device_ids {
-        print!("attempt get device by id: {}", device_id);
         let dev = host.device_by_id(&device_id);
         if dev.is_some() {
-            println!(" => success");
+            debug!("attempt get device by id: {} -> success", device_id);
 
             device_option = dev;
             break;
         } else {
-            println!(" => failed");
+            debug!("attempt get device by id: {} -> failed", device_id);
         }
     }
 
 
-    print!("trying to connect audio device");
+    debug!("trying to connect audio device...");
     if let Some(device) = device_option {
-        println!(" => device {:?} is available", device.id());
+        debug!(" => device {:?} is available", device.id());
 
         if let Ok(builder) = DeviceSinkBuilder::from_device(device)
-            && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(2048)).open_stream(){
-            println!("sandreas: builder.stream.buffer_size: {:?}", stream.config().buffer_size());
+            && let Ok(stream) = builder.with_buffer_size(BufferSize::Fixed(512)).open_stream(){
+            debug!("builder.stream.buffer_size: {:?}", stream.config().buffer_size());
 
             let sink = rodio::Player::connect_new(stream.mixer());
 
@@ -549,17 +550,17 @@ fn playtest() -> Result<(), slint::PlatformError>{
                     sink.play();
                     sink.sleep_until_end();
                 } else {
-                    println!("error decoding");
+                    warn!("error on decoding");
                 }
             } else {
-                println!("error file result");
+                warn!("error on file result");
             }
 
         } else {
-            println!("failed to open audio stream");
+            warn!("failed to open audio stream");
         }
     } else {
-        println!("failed to find audio device");
+        warn!("failed to find audio device");
     }
 
     Ok(())

@@ -1,6 +1,7 @@
 use std::any::type_name;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::debug;
 use crate::background::display_controller::DisplayCommand;
 use crate::background::scheduler::scheduler_task_trait::SchedulerTaskTrait;
 use crate::background::scheduler::scheduler_task_type::SchedulerTaskType;
@@ -55,7 +56,7 @@ impl SchedulerTaskTrait for DisplayAutoShutdownTask {
         if !self.should_execute() {
             return Ok(false);
         }
-        println!("Auto-shutting down display…");
+        debug!("Auto-shutting down display…");
         let _ = self.display_tx.send(DisplayCommand::TurnOff);
         self.reset();
 

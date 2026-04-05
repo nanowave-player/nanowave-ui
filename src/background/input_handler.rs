@@ -49,7 +49,7 @@ impl InputHandler {
             let mut clicks_lock = clicks_clone.lock().unwrap();
             let hold_lock = hold_clone.lock().unwrap();
 
-            println!("execute debouncer: clicks: {}, hold: {}", *clicks_lock, *hold_lock);
+            debug!("execute debouncer: clicks: {}, hold: {}", *clicks_lock, *hold_lock);
             // let _ = player_tx.clone().send(PlayerCommand::PlayPause);
 
             let player_tx_clone = player_tx.clone();
@@ -132,7 +132,7 @@ impl InputHandler {
                                     }
                                 }
 
-                                // println!("clicks: {}, hold: {}", *clicks_lock, *hold_lock);
+                                // debug!("clicks: {}, hold: {}", *clicks_lock, *hold_lock);
                                 drop(clicks_lock);
                                 drop(hold_lock);
                                 if should_execute {

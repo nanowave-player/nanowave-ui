@@ -7,6 +7,7 @@ use sea_orm::ColumnTrait;
 use sea_orm::{DatabaseConnection, QueryFilter, QueryOrder};
 use std::time::Duration;
 use media_source::media_source_history_item::MediaSourceHistoryItem;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct FileMediaSourcePlaybackHistory {
@@ -41,7 +42,7 @@ impl FileMediaSourcePlaybackHistory {
 
 
     pub async fn find_latest(&self, item_id: &str) -> Option<ModelEx> {
-        println!("history->find_latest({})", item_id);
+        debug!("history->find_latest({})", item_id);
 
         // https://github.com/SeaQL/sea-orm/blob/984827a6de82f965b41a1d7eb36852702eac8755/tests/partial_model_tests.rs
         let db = self.db.clone();
@@ -62,11 +63,11 @@ impl FileMediaSourcePlaybackHistory {
 
         if let Ok(history_item) = result {
             if let Some(ex) = history_item.clone() {
-                println!("found a history item id={}, pos={}", ex.item_id, ex.position);
+                debug!("found a history item id={}, pos={}", ex.item_id, ex.position);
             }
             return history_item;
         } else {
-            println!("no history item found");
+            debug!("no history item found");
         }
         None
     }
@@ -76,19 +77,19 @@ impl FileMediaSourcePlaybackHistory {
         let db = self.db.clone();
         let item_id = history_item.item.id;
 
-        println!("Update history item: {:?}", item_id.clone());
+        debug!("Update history item: {:?}", item_id.clone());
 
         let latest_history_item_option = self.find_latest(&item_id).await;
 
         if latest_history_item_option.clone().is_some() {
             let debug_item = latest_history_item_option.clone().unwrap();
-            println!(" => A history item exists");
-            println!(" => id:{}, item_id:{} session_key:{}", debug_item.id, debug_item.item_id, debug_item.session_key);
+            debug!(" => A history item exists");
+            debug!(" => id:{}, item_id:{} session_key:{}", debug_item.id, debug_item.item_id, debug_item.session_key);
 
             if debug_item.session_key != history_item.session_key.to_string() {
-                println!("session_key FAILED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
+                debug!("session_key FAILED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
             } else {
-                println!("session_key MATCHED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
+                debug!("session_key MATCHED: {} != {}", debug_item.session_key, history_item.session_key.to_string())
             }
         }
 
@@ -105,7 +106,7 @@ impl FileMediaSourcePlaybackHistory {
             )
         } else {
             let now = Utc::now();
-            println!(" => create a new history item");
+            debug!(" => create a new history item");
 
             let item_result = item::Entity::load()
                 .filter(item::Column::Id.eq(&item_id))
@@ -115,7 +116,7 @@ impl FileMediaSourcePlaybackHistory {
                 .await;
 
             if let Ok(Some(item)) = item_result {
-                println!(" => We have a media item");
+                debug!(" => We have a media item");
 
                 Some(
                     items_progress_history::ActiveModel::builder()
@@ -125,23 +126,23 @@ impl FileMediaSourcePlaybackHistory {
                         .set_date_modified(now)
                 )
             } else {
-                println!(" => No media item");
+                debug!(" => No media item");
 
                 None
             }
         };
 
         if let Some(upsert_item) = upsert_item_option {
-            println!(" => We have an upsert item");
+            debug!(" => We have an upsert item");
 
             let result = upsert_item
                 .save(&db)
                 .await;
 
-            println!(" => The upsert resulted in {}", result.is_ok());
+            debug!(" => The upsert resulted in {}", result.is_ok());
             result.is_ok()
         } else {
-            println!(" => no upsert item :( ");
+            debug!(" => no upsert item :( ");
 
             false
         }

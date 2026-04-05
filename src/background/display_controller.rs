@@ -3,6 +3,7 @@ use crate::background::scheduler::scheduler::SchedulerEvent;
 use std::time::Duration;
 use tokio::fs;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tracing::debug;
 
 const DISPLAY_ON_OFF_FILE: &str = "/sys/class/pwm/pwmchip8/pwm2/enable";
 
@@ -43,7 +44,7 @@ impl DisplayController {
                     // DisplayCommand::TurnOn => self.switch_display(true).await,
                     DisplayCommand::Toggle => self.toggle_display().await,
                     DisplayCommand::ChangeBrightness(brightness_perscent) => {
-                        println!("Change brightness to {}", brightness_perscent);
+                        debug!("Change brightness to {}", brightness_perscent);
                     }
                 }
                 let _sched = scheduler_evt_tx.send(SchedulerEvent::Reset(DisplayAutoShutdownTask::id()));

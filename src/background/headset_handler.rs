@@ -5,7 +5,7 @@ use evdev::{Device, EventSummary, KeyCode};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
-
+use tracing::debug;
 
 pub struct HeadsetHandler {}
 
@@ -21,7 +21,7 @@ impl HeadsetHandler {
         loop {
             tokio::time::sleep(Duration::from_secs(2)).await;
             headset_tx.send(InputEvent::PlayPause).ok();
-            println!("sending InputEvent::PlayPause");
+            debug!("sending InputEvent::PlayPause");
         }
         */
         /*
@@ -31,7 +31,7 @@ impl HeadsetHandler {
         let (headset_tx, headset_rx) = mpsc::unbounded_channel::<input_event::InputEvent>();
 
         for event in device.fetch_events().unwrap() {
-            println!("sending InputEvent::PlayPause");
+            debug!("sending InputEvent::PlayPause");
             headset_tx.send(InputEvent::PlayPause).ok();
         }
 
@@ -47,21 +47,21 @@ impl HeadsetHandler {
                                 EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 1) => {
                                     // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Press, ev.timestamp()));
                                     // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(TriggerAction::Toggle));
-                                    // println!("PLAYPAUSE PRESSED: {:?}", ev);
-                                    println!("PLAYPAUSE PRESSED: {:?}", ev);
+                                    // debug!("PLAYPAUSE PRESSED: {:?}", ev);
+                                    debug!("PLAYPAUSE PRESSED: {:?}", ev);
                                     Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Press))
                                     // Some(InputEvent::PlayPause)
                                 }
                                 EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 0) => {
                                     // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
                                     // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
-                                    // println!("PLAYPAUSE RELEASED: {:?}", ev);
-                                    println!("PLAYPAUSE RELEASED: {:?}", ev);
+                                    // debug!("PLAYPAUSE RELEASED: {:?}", ev);
+                                    debug!("PLAYPAUSE RELEASED: {:?}", ev);
                                     Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Release))
 
                                 }
                                 EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 1) => {
-                                    println!("VOLUME_UP PRESSED: {:?}", ev);
+                                    debug!("VOLUME_UP PRESSED: {:?}", ev);
 
                                     Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Press))
 
@@ -69,19 +69,19 @@ impl HeadsetHandler {
                                 }
                                 EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 0) => {
                                     //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Release, ev.timestamp()));
-                                    println!("VOLUME_UP RELEASED: {:?}", ev);
+                                    debug!("VOLUME_UP RELEASED: {:?}", ev);
                                     Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Release))
 
                                 }
                                 EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 1) => {
                                     //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Press, ev.timestamp()));
-                                    println!("VOLUME_DOWN PRESSED: {:?}", ev);
+                                    debug!("VOLUME_DOWN PRESSED: {:?}", ev);
                                     Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Press))
 
                                 }
                                 EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 0) => {
                                     //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Release, ev.timestamp()));
-                                    println!("VOLUME_DOWN RELEASED: {:?}", ev);
+                                    debug!("VOLUME_DOWN RELEASED: {:?}", ev);
                                     Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Release))
                                 }
                                 _ => {
@@ -111,7 +111,7 @@ impl HeadsetHandler {
                             // headset_tx.send(InputEvent::PlayPause).ok();
 
                         } else {
-                            eprintln!("Error: {:?}", e);
+                            edebug!("Error: {:?}", e);
                         }
 
                          */
@@ -126,28 +126,28 @@ impl HeadsetHandler {
 
                  /*
                  for event in device.fetch_events().unwrap() {
-                    println!("sending InputEvent::PlayPause");
+                    debug!("sending InputEvent::PlayPause");
                     headset_tx.send(InputEvent::PlayPause).ok();
                     continue;
                     let tx_input_event_option = match event.destructure() {
                         EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 1) => {
                             // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Press, ev.timestamp()));
                             // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(TriggerAction::Toggle));
-                            // println!("PLAYPAUSE PRESSED: {:?}", ev);
-                            println!("PLAYPAUSE PRESSED: {:?}", ev);
+                            // debug!("PLAYPAUSE PRESSED: {:?}", ev);
+                            debug!("PLAYPAUSE PRESSED: {:?}", ev);
                             // Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Press))
                             Some(InputEvent::PlayPause)
                         }
                         EventSummary::Key(ev, KeyCode::KEY_PLAYPAUSE, 0) => {
                             // let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
                             // let _ = evt_tx.send(PlayerEvent::ExternalTrigger(ButtonKey::PlayPause, ButtonAction::Release, ev.timestamp()));
-                            // println!("PLAYPAUSE RELEASED: {:?}", ev);
-                            println!("PLAYPAUSE RELEASED: {:?}", ev);
+                            // debug!("PLAYPAUSE RELEASED: {:?}", ev);
+                            debug!("PLAYPAUSE RELEASED: {:?}", ev);
                             Some(InputEvent::ButtonEvent(Headset, PlayPause, InputEventAction::Release))
 
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 1) => {
-                            println!("VOLUME_UP PRESSED: {:?}", ev);
+                            debug!("VOLUME_UP PRESSED: {:?}", ev);
 
                             Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Press))
 
@@ -155,19 +155,19 @@ impl HeadsetHandler {
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEUP, 0) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeUp, ButtonAction::Release, ev.timestamp()));
-                            println!("VOLUME_UP RELEASED: {:?}", ev);
+                            debug!("VOLUME_UP RELEASED: {:?}", ev);
                             Some(InputEvent::ButtonEvent(Headset, VolumeIncrease, InputEventAction::Release))
 
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 1) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Press, ev.timestamp()));
-                            println!("VOLUME_DOWN PRESSED: {:?}", ev);
+                            debug!("VOLUME_DOWN PRESSED: {:?}", ev);
                             Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Press))
 
                         }
                         EventSummary::Key(ev, KeyCode::KEY_VOLUMEDOWN, 0) => {
                             //let _ = player_button_cmd_tx.send(HandleButton(ButtonKey::VolumeDown, ButtonAction::Release, ev.timestamp()));
-                            println!("VOLUME_DOWN RELEASED: {:?}", ev);
+                            debug!("VOLUME_DOWN RELEASED: {:?}", ev);
                             Some(InputEvent::ButtonEvent(Headset, VolumeDecrease, InputEventAction::Release))
                         }
                         _ => {
@@ -177,7 +177,7 @@ impl HeadsetHandler {
 
                     if let Some(tx_input_event) = tx_input_event_option {
                         let send_result = headset_tx.send(tx_input_event);
-                        println!("SEND: {:?}", send_result);
+                        debug!("SEND: {:?}", send_result);
                     }
                 }
 

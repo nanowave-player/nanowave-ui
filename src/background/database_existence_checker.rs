@@ -7,6 +7,8 @@ use sea_orm::EntityTrait;
 use sea_orm::QueryFilter;
 use sea_orm::ColumnTrait;
 use std::path::PathBuf;
+use tracing::error;
+
 #[derive(Debug, Clone)]
 pub enum DatabaseExistenceCheckerError {
     // FileId,
@@ -42,7 +44,7 @@ impl DatabaseExistenceChecker {
             let file_id_result = file_id::get_file_id(file.as_path());
             if file_id_result.is_err() {
                 // todo: Logging
-                println!("db_existance_checker err: {:?}", file_id_result);
+                error!("db_existance_checker err: {:?}", file_id_result);
 
                 continue;
             }
@@ -50,14 +52,14 @@ impl DatabaseExistenceChecker {
             let existing_record_result = self.load_existing_record(&file_id).await;
             if existing_record_result.is_err() {
                 // todo: Logging
-                println!("db_existance_checker err: {:?}", existing_record_result);
+                error!("db_existance_checker err: {:?}", existing_record_result);
                 continue;
             }
 
 
             let existing_record_option = existing_record_result.unwrap();
             if !self.needs_upsert(&file, &existing_record_option) {
-                // println!("db_existance_checker no upsert needed: {:?}", file);
+                // debug!("db_existance_checker no upsert needed: {:?}", file);
                 continue;
             }
 
