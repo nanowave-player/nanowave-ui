@@ -33,6 +33,7 @@ pub struct FileMediaSource {
 impl FileMediaSource {
 
     pub fn new(media_path: String, cache_path: String, db: DatabaseConnection) -> Self{
+        debug!("new media source");
         Self {
             media_path,
             cache_path,

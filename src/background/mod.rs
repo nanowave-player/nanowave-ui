@@ -200,7 +200,7 @@ pub async fn background_tasks(config: &Config,
 
     let media_source_task = tokio::spawn(async {
         debug!("starting media_source_task");
-        let _ = media_source.run(media_source_rx).await;
+        let _media_source_running = media_source.run(media_source_rx).await;
     });
 
 
@@ -220,7 +220,7 @@ pub async fn background_tasks(config: &Config,
             debug!("NANOWAVE_AUDIO_DEVICE={:?}", device_ids);
         }
 
-        let _ = Player::new(Arc::new(media_source_player), device_ids).run(player_tx_player, player_rx, player_evt_tx).await;
+        let _player_running = Player::new(Arc::new(media_source_player), device_ids).run(player_tx_player, player_rx, player_evt_tx).await;
     });
 
 

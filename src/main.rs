@@ -51,7 +51,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let cli = Cli::parse();
     init_tracing(cli.env_filter);
 
-    // let _ = playtest();
+    let _ = playtest();
     let media_path = "media/";
     let storage_path = ".nanowave/";
 
@@ -203,6 +203,7 @@ fn main() -> Result<(), slint::PlatformError> {
         debug!("slint_media_source on_filter");
         let ui = ui_slint_media_source_filter.upgrade().unwrap();
         move |query| {
+            debug!("inner filter");
             let ui_weak_clone = ui.as_weak().clone();
             let cmd = MediaSourceCommand::Filter(FilterCommand {
                 query: query.to_string(),
@@ -227,6 +228,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let media_source = ui.global::<SlintMediaSource>();
             media_source.set_is_loading(true);
             media_source.set_find_results(ModelRc::default());
+            debug!("media_source_filter_tx send");
             media_source_filter_tx.send(cmd).ok();
             debug!("slint_media_source on_filter end");
         }
@@ -284,17 +286,22 @@ fn main() -> Result<(), slint::PlatformError> {
 
 
     slint_audio_player.on_play_media({
+        debug!("slint_audio_player.on_play_media called");
         let tx = player_cmd_tx.clone();
         move |media_item_id: SharedString, position: i64| {
             let position_as_duration = Duration::from_millis(position as u64);
+            debug!("send PlayerCommand::PlayMedia({})", media_item_id);
             tx.send(PlayerCommand::PlayMedia(media_item_id.to_string(), position_as_duration))
                 .unwrap();
         }
     });
 
     slint_audio_player.on_play({
+        debug!("slint_audio_player.on_play called");
         let tx = player_cmd_tx.clone();
         move || {
+            debug!("send PlayerCommand::Play()");
+
             tx.send(PlayerCommand::Play()).unwrap();
         }
     });
@@ -387,6 +394,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_handle_navigation = ui.as_weak();
     slint::spawn_local(async move {
         while let Some(event) = navigation_evt_rx.recv().await {
+            debug!("received navigation event");
+
             if let Some(ui) = ui_handle_navigation.upgrade() {
                 let inner = ui.global::<SlintNavigation>();
                 match event {
@@ -394,6 +403,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         let new_path_vec: Vec<SharedString> = path.into_iter().map(Into::into).collect();
                         let new_path = ModelRc::new(VecModel::from(new_path_vec));
                         // todo this has been removed for debugging
+                        debug!("navigateTo {:?}", new_path);
                         inner.invoke_path(new_path);
                     }
                 }
@@ -405,8 +415,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui_handle_player = ui.as_weak();
     slint::spawn_local(async move {
-
         while let Some(event) = player_evt_rx.recv().await {
+            debug!("player event received");
+
             if let Some(ui) = ui_handle_player.upgrade() {
                 let inner = ui.global::<SlintAudioPlayer>();
 
@@ -464,11 +475,14 @@ fn init_tracing(env_filter: String) {
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to set global subscriber");
 
-    trace!("This is an trace log from my crate");
-    debug!("This is an debug log from my crate");
-    info!("This is an info log from my crate");
-    warn!("This is an warn log from my crate");
-    error!("This is an error log from my crate");
+    /*
+    trace!("trace test");
+    debug!("debug test");
+    info!("info test");
+    warn!("warn test");
+    error!("error test");
+
+     */
 }
 
 
@@ -548,7 +562,8 @@ fn playtest() -> Result<(), slint::PlatformError>{
                     sink.clear();
                     sink.append(decoder);
                     sink.play();
-                    sink.sleep_until_end();
+                    // sink.sleep_until_end();
+                    sleep(Duration::from_millis(3000));
                 } else {
                     warn!("error on decoding");
                 }
