@@ -508,6 +508,13 @@ fn playtest() -> Result<(), slint::PlatformError>{
         Err(_e) => "media/sample-3s.wav".to_string()
     };
 
+    let default_playback_duration: u64 = 60000;
+    let playback_duration: u64 = match env::var("NANOWAVE_PLAYBACK_DURATION") {
+        Ok(val) => val.parse::<u64>().unwrap_or(default_playback_duration),
+        Err(_) => default_playback_duration,
+    };
+
+
     let host = rodio::cpal::default_host();
 
     let device_id_strings = device_ids.to_vec();
@@ -562,8 +569,13 @@ fn playtest() -> Result<(), slint::PlatformError>{
                     sink.clear();
                     sink.append(decoder);
                     sink.play();
-                    // sink.sleep_until_end();
-                    sleep(Duration::from_millis(3000));
+
+                    if playback_duration == 0 {
+                        sink.sleep_until_end();
+                    } else {
+                        sleep(Duration::from_millis(playback_duration));
+                    }
+
                 } else {
                     warn!("error on decoding");
                 }

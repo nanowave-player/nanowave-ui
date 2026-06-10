@@ -1,3 +1,25 @@
+# Dev Setup
+
+```bash
+# install docker
+pacman -Sy docker docker-buildx
+sudo usermod -aG docker $USER
+
+# check required veth module for docker
+# cachyos lts kernel has this
+lsmod | grep veth
+
+# load module
+sudo modprobe veth
+
+
+# install cross
+cargo install cross --git https://github.com/cross-rs/cross
+
+
+```
+
+
 # nanowave
 
 nanowave is planned as a DIY portable audio player developed in Rust. It is currently a proof-of-concept learning project, that has no "release", but some demos, what it should look like.
