@@ -34,8 +34,7 @@ https://github.com/scpcom/LicheeSG-Nano-Build/blob/develop/best-practice.md
   - The touch variant - required
 - USB-C to Audio Jack Adapter, e.g. Apple (~10$)
   - Used for audio output - recommended
-- TP4057 5V Battery Module (~2$)
-  - Used for running the device of a battery - optional
+- [Battery Pal](https://pnlabs.ca/batterypal/) / ESP32 C6 for battery power
 - MAX17043 Battery gauge (~5$)
   - Planned for showing the battery percentage - optional
 
