@@ -1,11 +1,13 @@
 # nanowave
 
-nanowave is planned as a DIY portable audio player developed in Rust. It is currently a proof-of-concept learning project, that has no "release", but some demos, what it should look like.
+nanowave is planned as a DIY portable audio player developed in Rust / Slint. It is currently a proof-of-concept learning project, that has no "release", but some demos, what it should look like.
 
-Here are some pictures, have fun...
+In general the project is cross-platform / cross-arch, but currently targeted for Linux / Buildroot on x64 and RISC-V 64bit musl.
+
+Here are some pictures of the current state...
 
 <img src="doc/assets/img/001_case.jpg" width="200"><br>
-3D printed case<br>
+3D printed case Prototype<br>
 
 <img src="doc/assets/img/002_menu.jpg" width="200"><br>
 Feature overview<br>
@@ -13,30 +15,48 @@ Feature overview<br>
 <img src="doc/assets/img/003_breadboard.jpg" width="200"><br>
 Development Breadboard<br>
 
-Audio playback demo video: https://www.youtube.com/watch?v=vRbHiqdaSFk
+Audio playback demo video (audio unfortunately shifted, thanks YouTube): 
+https://www.youtube.com/watch?v=vRbHiqdaSFk
+
+
+## Hardware
+
+**Required**
+- **Board:** LicheeRV Nano Wifi (~22$)
+  - Variant: `Bundle: RV NANO-W`
+  - [AliExpress](https://www.aliexpress.com/item/1005006519668532.html)
+- **Display:** IPS 2.28" ST7701S Touch Display LHCM228TS003A (~12$)
+  - Variant `Screen with Touch`
+  - [AliExpress](https://www.aliexpress.com/item/1005006185077108.html))
+- **Audio**: USB-C to Audio Jack Adapter, used for audio output (~10$)
+  - e.g. [Apple](https://www.apple.com/shop/product/mw2q3am/a/usb-c-to-35-mm-headphone-jack-adapter)
+  - Others might work, but only some have been tested
+- **Storage / OS**:
+  - Any micro sd card > 4GB
+- **Power**: 
+  - For getting started, you can use USB-C
+  - As soon as you need USB-C for Audio, you can add a stable 5 V power source to the PINs `VSYS / GND`, either by soldering cables or using clamps
+  - You could also use a microcontroller with battery support: [ESP32 C6](https://www.aliexpress.com/item/1005006987272421.html)
+
+**Power supply considerations**
+Currently I'm in contact with [PN Labs](https://pnlabs.ca/batterypal/) to test their promising and very efficient [Battery Pal](https://pnlabs.ca/batterypal/) module, because cheaper modules like TP4057 5V and LX-LCBST were producing constant and very annoying noise while listening to audio. Battery Pal seems to have fixed this and other issues, but the tests are still ongoing...
+
+**Optional / Work-in-progress**
+- Battery gauge, e.g. `MAX17043` (~5$)
+  - Planned for showing the battery percentage - optional
+
 
 # Howto
 
 Below is a small set of shell instructions to prepare a micro sd card for deploying 
 the `nanowave` project on a LicheeRV Nano.
 
-## Best practise
+## Best practice
 
-For a good introduction into the LicheeRV Hardware you can take a look at this:
+For a good introduction into the LicheeRV Hardware, you can take a look at this:
 https://github.com/scpcom/LicheeSG-Nano-Build/blob/develop/best-practice.md
 
 
-## Hardware
-
-- LicheeRV Nano Wifi (~15$)
-  - Base module - required
-- IPS 2.28" ST7701S Touch Display LHCM228TS003A (~11$)
-  - The touch variant - required
-- USB-C to Audio Jack Adapter, e.g. Apple (~10$)
-  - Used for audio output - recommended
-- [Battery Pal](https://pnlabs.ca/batterypal/) / ESP32 C6 for battery power
-- MAX17043 Battery gauge (~5$)
-  - Planned for showing the battery percentage - optional
 
 ## Prepare the LicheeRV
 ```sh
