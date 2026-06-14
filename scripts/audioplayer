@@ -21,3 +21,10 @@ echo 504 > /sys/class/gpio/export
 # echo 505 > /sys/class/gpio/export
 
 cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="media/audiobooks/1 - Benjamin als Wetterelefant.m4b" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=A" ./nanowave # --base-directory="./media"
+
+
+# cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="silence.wav" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=A" ./nanowave # --base-directory="./media"
+# cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="silence.wav" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=Audio" ./nanowave # --base-directory="./media"
+# cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="media/audiobooks/1 - Benjamin als Wetterelefant.m4b" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=Audio" ./nanowave # --base-directory="./media"
+# cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="media/audiobooks/silence.m4b" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=Audio" ./nanowave # --base-directory="./media"
+# cd /root/ && RUST_BACKTRACE=full NANOWAVE_AUDIO_FILE="media/audiobooks/silence.wav" NANOWAVE_AUDIO_DEVICE="alsa:default:CARD=Audio" ./nanowave # --base-directory="./media"
